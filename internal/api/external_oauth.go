@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/mrjones/oauth"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 // OAuthProviderData contains the userData and token returned by the oauth provider
@@ -39,10 +39,17 @@ func (a *API) loadFlowState(w http.ResponseWriter, r *http.Request) (context.Con
 	if err != nil {
 		u, uerr := url.ParseRequestURI(a.config.SiteURL)
 		if uerr != nil {
-			return ctx, internalServerError("site url is improperly formatted").WithInternalError(uerr)
+			return ctx, internalServerError(
+				"site url is improperly formatted",
+			).WithInternalError(uerr)
 		}
 
-		q := getErrorQueryString(err, utilities.GetRequestID(ctx), observability.GetLogEntry(r).Entry, u.Query())
+		q := getErrorQueryString(
+			err,
+			utilities.GetRequestID(ctx),
+			observability.GetLogEntry(r).Entry,
+			u.Query(),
+		)
 		u.RawQuery = q.Encode()
 
 		http.Redirect(w, r, u.String(), http.StatusSeeOther)
@@ -50,7 +57,11 @@ func (a *API) loadFlowState(w http.ResponseWriter, r *http.Request) (context.Con
 	return ctx, err
 }
 
-func (a *API) oAuthCallback(ctx context.Context, r *http.Request, providerType string) (*OAuthProviderData, error) {
+func (a *API) oAuthCallback(
+	ctx context.Context,
+	r *http.Request,
+	providerType string,
+) (*OAuthProviderData, error) {
 	var rq url.Values
 	if err := r.ParseForm(); r.Method == http.MethodPost && err == nil {
 		rq = r.Form
@@ -65,12 +76,19 @@ func (a *API) oAuthCallback(ctx context.Context, r *http.Request, providerType s
 
 	oauthCode := rq.Get("code")
 	if oauthCode == "" {
-		return nil, badRequestError(ErrorCodeBadOAuthCallback, "OAuth callback with missing authorization code missing")
+		return nil, badRequestError(
+			ErrorCodeBadOAuthCallback,
+			"OAuth callback with missing authorization code missing",
+		)
 	}
 
 	oAuthProvider, err := a.OAuthProvider(ctx, providerType)
 	if err != nil {
-		return nil, badRequestError(ErrorCodeOAuthProviderNotSupported, "Unsupported provider: %+v", err).WithInternalError(err)
+		return nil, badRequestError(
+			ErrorCodeOAuthProviderNotSupported,
+			"Unsupported provider: %+v",
+			err,
+		).WithInternalError(err)
 	}
 
 	log := observability.GetLogEntry(r).Entry
@@ -81,12 +99,17 @@ func (a *API) oAuthCallback(ctx context.Context, r *http.Request, providerType s
 
 	token, err := oAuthProvider.GetOAuthToken(oauthCode)
 	if err != nil {
-		return nil, internalServerError("Unable to exchange external code: %s", oauthCode).WithInternalError(err)
+		return nil, internalServerError(
+			"Unable to exchange external code: %s",
+			oauthCode,
+		).WithInternalError(err)
 	}
 
 	userData, err := oAuthProvider.GetUserData(ctx, token)
 	if err != nil {
-		return nil, internalServerError("Error getting user profile from external provider").WithInternalError(err)
+		return nil, internalServerError(
+			"Error getting user profile from external provider",
+		).WithInternalError(err)
 	}
 
 	switch externalProvider := oAuthProvider.(type) {
@@ -112,7 +135,11 @@ func (a *API) oAuthCallback(ctx context.Context, r *http.Request, providerType s
 func (a *API) oAuth1Callback(ctx context.Context, providerType string) (*OAuthProviderData, error) {
 	oAuthProvider, err := a.OAuthProvider(ctx, providerType)
 	if err != nil {
-		return nil, badRequestError(ErrorCodeOAuthProviderNotSupported, "Unsupported provider: %+v", err).WithInternalError(err)
+		return nil, badRequestError(
+			ErrorCodeOAuthProviderNotSupported,
+			"Unsupported provider: %+v",
+			err,
+		).WithInternalError(err)
 	}
 	oauthToken := getRequestToken(ctx)
 	oauthVerifier := getOAuthVerifier(ctx)
@@ -123,11 +150,15 @@ func (a *API) oAuth1Callback(ctx context.Context, providerType string) (*OAuthPr
 			Token: oauthToken,
 		}, oauthVerifier)
 		if err != nil {
-			return nil, internalServerError("Unable to retrieve access token").WithInternalError(err)
+			return nil, internalServerError(
+				"Unable to retrieve access token",
+			).WithInternalError(err)
 		}
 		userData, err = twitterProvider.FetchUserData(ctx, accessToken)
 		if err != nil {
-			return nil, internalServerError("Error getting user email from external provider").WithInternalError(err)
+			return nil, internalServerError(
+				"Error getting user email from external provider",
+			).WithInternalError(err)
 		}
 	}
 

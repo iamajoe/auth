@@ -10,12 +10,12 @@ import (
 
 	"github.com/gofrs/uuid"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	mail "github.com/iamajoe/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	mail "github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
 )
 
 type AnonymousTestSuite struct {
@@ -198,11 +198,23 @@ func (ts *AnonymousTestSuite) TestConvertAnonymousUserToPermanent() {
 			switch c.verificationType {
 			case mail.EmailChangeVerification:
 				assert.Equal(ts.T(), c.body["email"], data.User.GetEmail())
-				assert.Equal(ts.T(), models.JSONMap(models.JSONMap{"provider": "email", "providers": []interface{}{"email"}}), data.User.AppMetaData)
+				assert.Equal(
+					ts.T(),
+					models.JSONMap(
+						models.JSONMap{"provider": "email", "providers": []interface{}{"email"}},
+					),
+					data.User.AppMetaData,
+				)
 				assert.NotEmpty(ts.T(), data.User.EmailConfirmedAt)
 			case phoneChangeVerification:
 				assert.Equal(ts.T(), c.body["phone"], data.User.GetPhone())
-				assert.Equal(ts.T(), models.JSONMap(models.JSONMap{"provider": "phone", "providers": []interface{}{"phone"}}), data.User.AppMetaData)
+				assert.Equal(
+					ts.T(),
+					models.JSONMap(
+						models.JSONMap{"provider": "phone", "providers": []interface{}{"phone"}},
+					),
+					data.User.AppMetaData,
+				)
 				assert.NotEmpty(ts.T(), data.User.PhoneConfirmedAt)
 			}
 		})
@@ -250,7 +262,8 @@ func (ts *AnonymousTestSuite) TestAdminUpdateAnonymousUser() {
 	claims := &AccessTokenClaims{
 		Role: "supabase_admin",
 	}
-	adminJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
+	adminJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
+		SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err)
 
 	u1, err := models.NewUser("", "", "", ts.Config.JWT.Aud, nil)
@@ -304,7 +317,11 @@ func (ts *AnonymousTestSuite) TestAdminUpdateAnonymousUser() {
 			var buffer bytes.Buffer
 			require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(c.body))
 
-			req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/admin/users/%s", c.userId), &buffer)
+			req := httptest.NewRequest(
+				http.MethodPut,
+				fmt.Sprintf("/admin/users/%s", c.userId),
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", adminJwt))
 

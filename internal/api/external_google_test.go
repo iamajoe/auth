@@ -8,8 +8,8 @@ import (
 	"net/url"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/api/provider"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/api/provider"
 )
 
 const (
@@ -35,16 +35,26 @@ func (ts *ExternalTestSuite) TestSignupExternalGoogle() {
 
 	claims := ExternalProviderClaims{}
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
-	_, err = p.ParseWithClaims(q.Get("state"), &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(ts.Config.JWT.Secret), nil
-	})
+	_, err = p.ParseWithClaims(
+		q.Get("state"),
+		&claims,
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(ts.Config.JWT.Secret), nil
+		},
+	)
 	ts.Require().NoError(err)
 
 	ts.Equal("google", claims.Provider)
 	ts.Equal(ts.Config.SiteURL, claims.SiteURL)
 }
 
-func GoogleTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *int, code string, user string) *httptest.Server {
+func GoogleTestSignupSetup(
+	ts *ExternalTestSuite,
+	tokenCount *int,
+	userCount *int,
+	code string,
+	user string,
+) *httptest.Server {
 	provider.ResetGoogleProvider()
 
 	var server *httptest.Server
@@ -88,7 +98,16 @@ func (ts *ExternalTestSuite) TestSignupExternalGoogle_AuthorizationCode() {
 
 	u := performAuthorization(ts, "google", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "google@example.com", "Google Test", "googleTestId", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"google@example.com",
+		"Google Test",
+		"googleTestId",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupErrorWhenNoUser() {
@@ -101,7 +120,13 @@ func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupErrorWhenNoUse
 
 	u := performAuthorization(ts, "google", code, "")
 
-	assertAuthorizationFailure(ts, u, "Signups not allowed for this instance", "access_denied", "google@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Signups not allowed for this instance",
+		"access_denied",
+		"google@example.com",
+	)
 }
 func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupErrorWhenEmptyEmail() {
 	ts.Config.DisableSignup = true
@@ -113,13 +138,25 @@ func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupErrorWhenEmpty
 
 	u := performAuthorization(ts, "google", code, "")
 
-	assertAuthorizationFailure(ts, u, "Error getting user email from external provider", "server_error", "google@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Error getting user email from external provider",
+		"server_error",
+		"google@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupSuccessWithPrimaryEmail() {
 	ts.Config.DisableSignup = true
 
-	ts.createUser("googleTestId", "google@example.com", "Google Test", "http://example.com/avatar", "")
+	ts.createUser(
+		"googleTestId",
+		"google@example.com",
+		"Google Test",
+		"http://example.com/avatar",
+		"",
+	)
 
 	tokenCount, userCount := 0, 0
 	code := "authcode"
@@ -128,7 +165,16 @@ func (ts *ExternalTestSuite) TestSignupExternalGoogleDisableSignupSuccessWithPri
 
 	u := performAuthorization(ts, "google", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "google@example.com", "Google Test", "googleTestId", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"google@example.com",
+		"Google Test",
+		"googleTestId",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalGoogleSuccessWhenMatchingToken() {
@@ -142,7 +188,16 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalGoogleSuccessWhenMatchingTok
 
 	u := performAuthorization(ts, "google", code, "invite_token")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "google@example.com", "Google Test", "googleTestId", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"google@example.com",
+		"Google Test",
+		"googleTestId",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalGoogleErrorWhenNoMatchingToken() {
@@ -177,5 +232,11 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalGoogleErrorWhenEmailDoesntMa
 
 	u := performAuthorization(ts, "google", code, "invite_token")
 
-	assertAuthorizationFailure(ts, u, "Invited email does not match emails from external provider", "invalid_request", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Invited email does not match emails from external provider",
+		"invalid_request",
+		"",
+	)
 }

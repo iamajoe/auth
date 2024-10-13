@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -37,13 +37,19 @@ type googleProvider struct {
 }
 
 // NewGoogleProvider creates a Google OAuth2 identity provider.
-func NewGoogleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewGoogleProvider(
+	ctx context.Context,
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
 
 	if ext.URL != "" {
-		logrus.Warn("Google OAuth provider has URL config set which is ignored (check GOTRUE_EXTERNAL_GOOGLE_URL)")
+		logrus.Warn(
+			"Google OAuth provider has URL config set which is ignored (check GOTRUE_EXTERNAL_GOOGLE_URL)",
+		)
 	}
 
 	oauthScopes := []string{
@@ -80,7 +86,10 @@ const UserInfoEndpointGoogle = "https://www.googleapis.com/userinfo/v2/me"
 
 var internalUserInfoEndpointGoogle = UserInfoEndpointGoogle
 
-func (g googleProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g googleProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	if idToken := tok.Extra("id_token"); idToken != nil {
 		_, data, err := ParseIDToken(ctx, g.oidc, &oidc.Config{
 			ClientID: g.Config.ClientID,

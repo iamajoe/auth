@@ -7,9 +7,9 @@ import (
 	"github.com/fatih/structs"
 	"github.com/go-chi/chi/v5"
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 func (a *API) DeleteIdentity(w http.ResponseWriter, r *http.Request) error {
@@ -28,12 +28,18 @@ func (a *API) DeleteIdentity(w http.ResponseWriter, r *http.Request) error {
 	aud := a.requestAud(ctx, r)
 	audienceFromClaims, _ := claims.GetAudience()
 	if len(audienceFromClaims) == 0 || aud != audienceFromClaims[0] {
-		return forbiddenError(ErrorCodeUnexpectedAudience, "Token audience doesn't match request audience")
+		return forbiddenError(
+			ErrorCodeUnexpectedAudience,
+			"Token audience doesn't match request audience",
+		)
 	}
 
 	user := getUser(ctx)
 	if len(user.Identities) <= 1 {
-		return unprocessableEntityError(ErrorCodeSingleIdentityNotDeletable, "User must have at least 1 identity after unlinking")
+		return unprocessableEntityError(
+			ErrorCodeSingleIdentityNotDeletable,
+			"User must have at least 1 identity after unlinking",
+		)
 	}
 	var identityToBeDeleted *models.Identity
 	for i := range user.Identities {
@@ -63,21 +69,32 @@ func (a *API) DeleteIdentity(w http.ResponseWriter, r *http.Request) error {
 		case "phone":
 			user.PhoneConfirmedAt = nil
 			if terr := user.SetPhone(tx, ""); terr != nil {
-				return internalServerError("Database error updating user phone").WithInternalError(terr)
+				return internalServerError(
+					"Database error updating user phone",
+				).WithInternalError(terr)
 			}
 			if terr := tx.UpdateOnly(user, "phone_confirmed_at"); terr != nil {
-				return internalServerError("Database error updating user phone").WithInternalError(terr)
+				return internalServerError(
+					"Database error updating user phone",
+				).WithInternalError(terr)
 			}
 		default:
 			if terr := user.UpdateUserEmailFromIdentities(tx); terr != nil {
 				if models.IsUniqueConstraintViolatedError(terr) {
-					return unprocessableEntityError(ErrorCodeEmailConflictIdentityNotDeletable, "Unable to unlink identity due to email conflict").WithInternalError(terr)
+					return unprocessableEntityError(
+						ErrorCodeEmailConflictIdentityNotDeletable,
+						"Unable to unlink identity due to email conflict",
+					).WithInternalError(terr)
 				}
-				return internalServerError("Database error updating user email").WithInternalError(terr)
+				return internalServerError(
+					"Database error updating user email",
+				).WithInternalError(terr)
 			}
 		}
 		if terr := user.UpdateAppMetaDataProviders(tx); terr != nil {
-			return internalServerError("Database error updating user providers").WithInternalError(terr)
+			return internalServerError(
+				"Database error updating user providers",
+			).WithInternalError(terr)
 		}
 		return nil
 	})
@@ -105,19 +122,37 @@ func (a *API) LinkIdentity(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *API) linkIdentityToUser(r *http.Request, ctx context.Context, tx *storage.Connection, userData *provider.UserProvidedData, providerType string) (*models.User, error) {
+func (a *API) linkIdentityToUser(
+	r *http.Request,
+	ctx context.Context,
+	tx *storage.Connection,
+	userData *provider.UserProvidedData,
+	providerType string,
+) (*models.User, error) {
 	targetUser := getTargetUser(ctx)
-	identity, terr := models.FindIdentityByIdAndProvider(tx, userData.Metadata.Subject, providerType)
+	identity, terr := models.FindIdentityByIdAndProvider(
+		tx,
+		userData.Metadata.Subject,
+		providerType,
+	)
 	if terr != nil {
 		if !models.IsNotFoundError(terr) {
-			return nil, internalServerError("Database error finding identity for linking").WithInternalError(terr)
+			return nil, internalServerError(
+				"Database error finding identity for linking",
+			).WithInternalError(terr)
 		}
 	}
 	if identity != nil {
 		if identity.UserID == targetUser.ID {
-			return nil, unprocessableEntityError(ErrorCodeIdentityAlreadyExists, "Identity is already linked")
+			return nil, unprocessableEntityError(
+				ErrorCodeIdentityAlreadyExists,
+				"Identity is already linked",
+			)
 		}
-		return nil, unprocessableEntityError(ErrorCodeIdentityAlreadyExists, "Identity is already linked to another user")
+		return nil, unprocessableEntityError(
+			ErrorCodeIdentityAlreadyExists,
+			"Identity is already linked to another user",
+		)
 	}
 	if _, terr := a.createNewIdentity(tx, targetUser, providerType, structs.Map(userData.Metadata)); terr != nil {
 		return nil, terr
@@ -134,7 +169,14 @@ func (a *API) linkIdentityToUser(r *http.Request, ctx context.Context, tx *stora
 			if terr := a.sendConfirmation(r, tx, targetUser, models.ImplicitFlow); terr != nil {
 				return nil, terr
 			}
-			return nil, storage.NewCommitWithError(unprocessableEntityError(ErrorCodeEmailNotConfirmed, "Unverified email with %v. A confirmation email has been sent to your %v email", providerType, providerType))
+			return nil, storage.NewCommitWithError(
+				unprocessableEntityError(
+					ErrorCodeEmailNotConfirmed,
+					"Unverified email with %v. A confirmation email has been sent to your %v email",
+					providerType,
+					providerType,
+				),
+			)
 		}
 		if terr := targetUser.Confirm(tx); terr != nil {
 			return nil, terr

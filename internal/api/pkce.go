@@ -4,8 +4,8 @@ import (
 	"regexp"
 
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 const (
@@ -21,9 +21,17 @@ func isValidCodeChallenge(codeChallenge string) (bool, error) {
 	// See RFC 7636 Section 4.2: https://www.rfc-editor.org/rfc/rfc7636#section-4.2
 	switch codeChallengeLength := len(codeChallenge); {
 	case codeChallengeLength < MinCodeChallengeLength, codeChallengeLength > MaxCodeChallengeLength:
-		return false, badRequestError(ErrorCodeValidationFailed, "code challenge has to be between %v and %v characters", MinCodeChallengeLength, MaxCodeChallengeLength)
+		return false, badRequestError(
+			ErrorCodeValidationFailed,
+			"code challenge has to be between %v and %v characters",
+			MinCodeChallengeLength,
+			MaxCodeChallengeLength,
+		)
 	case !codeChallengePattern.MatchString(codeChallenge):
-		return false, badRequestError(ErrorCodeValidationFailed, "code challenge can only contain alphanumeric characters, hyphens, periods, underscores and tildes")
+		return false, badRequestError(
+			ErrorCodeValidationFailed,
+			"code challenge can only contain alphanumeric characters, hyphens, periods, underscores and tildes",
+		)
 	default:
 		return true, nil
 	}
@@ -38,10 +46,17 @@ func addFlowPrefixToToken(token string, flowType models.FlowType) string {
 	return token
 }
 
-func issueAuthCode(tx *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod) (string, error) {
+func issueAuthCode(
+	tx *storage.Connection,
+	user *models.User,
+	authenticationMethod models.AuthenticationMethod,
+) (string, error) {
 	flowState, err := models.FindFlowStateByUserID(tx, user.ID.String(), authenticationMethod)
 	if err != nil && models.IsNotFoundError(err) {
-		return "", unprocessableEntityError(ErrorCodeFlowStateNotFound, "No valid flow state found for user.")
+		return "", unprocessableEntityError(
+			ErrorCodeFlowStateNotFound,
+			"No valid flow state found for user.",
+		)
 	} else if err != nil {
 		return "", err
 	}
@@ -84,12 +99,25 @@ func getFlowFromChallenge(codeChallenge string) models.FlowType {
 }
 
 // Should only be used with Auth Code of PKCE Flows
-func generateFlowState(tx *storage.Connection, providerType string, authenticationMethod models.AuthenticationMethod, codeChallengeMethodParam string, codeChallenge string, userID *uuid.UUID) (*models.FlowState, error) {
+func generateFlowState(
+	tx *storage.Connection,
+	providerType string,
+	authenticationMethod models.AuthenticationMethod,
+	codeChallengeMethodParam string,
+	codeChallenge string,
+	userID *uuid.UUID,
+) (*models.FlowState, error) {
 	codeChallengeMethod, err := models.ParseCodeChallengeMethod(codeChallengeMethodParam)
 	if err != nil {
 		return nil, err
 	}
-	flowState := models.NewFlowState(providerType, codeChallenge, codeChallengeMethod, authenticationMethod, userID)
+	flowState := models.NewFlowState(
+		providerType,
+		codeChallenge,
+		codeChallengeMethod,
+		authenticationMethod,
+		userID,
+	)
 	if err := tx.Create(flowState); err != nil {
 		return nil, err
 	}

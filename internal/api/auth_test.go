@@ -8,11 +8,11 @@ import (
 
 	"github.com/gofrs/uuid"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type AuthTestSuite struct {
@@ -46,7 +46,8 @@ func (ts *AuthTestSuite) TestExtractBearerToken() {
 	userClaims := &AccessTokenClaims{
 		Role: "authenticated",
 	}
-	userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims).SignedString([]byte(ts.Config.JWT.Secret))
+	userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims).
+		SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err)
 	req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)
 	req.Header.Set("Authorization", "Bearer "+userJwt)
@@ -206,8 +207,11 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				},
 				Role: "authenticated",
 			},
-			ExpectedError: badRequestError(ErrorCodeBadJWT, "invalid claim: sub claim must be a UUID"),
-			ExpectedUser:  nil,
+			ExpectedError: badRequestError(
+				ErrorCodeBadJWT,
+				"invalid claim: sub claim must be a UUID",
+			),
+			ExpectedUser: nil,
 		},
 		{
 			Desc: "Empty Session ID Claim",
@@ -255,7 +259,11 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 				Role:      "authenticated",
 				SessionId: "73bf9ee0-9e8c-453b-b484-09cb93e2f341",
 			},
-			ExpectedError:   forbiddenError(ErrorCodeSessionNotFound, "Session from session_id claim in JWT does not exist").WithInternalError(models.SessionNotFoundError{}).WithInternalMessage("session id (73bf9ee0-9e8c-453b-b484-09cb93e2f341) doesn't exist"),
+			ExpectedError: forbiddenError(
+				ErrorCodeSessionNotFound,
+				"Session from session_id claim in JWT does not exist",
+			).WithInternalError(models.SessionNotFoundError{}).
+				WithInternalMessage("session id (73bf9ee0-9e8c-453b-b484-09cb93e2f341) doesn't exist"),
 			ExpectedUser:    u,
 			ExpectedSession: nil,
 		},
@@ -263,7 +271,8 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {
 
 	for _, c := range cases {
 		ts.Run(c.Desc, func() {
-			userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, c.UserJwtClaims).SignedString([]byte(ts.Config.JWT.Secret))
+			userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, c.UserJwtClaims).
+				SignedString([]byte(ts.Config.JWT.Secret))
 			require.NoError(ts.T(), err)
 
 			req := httptest.NewRequest(http.MethodGet, "http://localhost", nil)

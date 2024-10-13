@@ -8,9 +8,9 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 // Common error messages during signup flow
@@ -85,7 +85,11 @@ func forbiddenError(errorCode ErrorCode, fmtString string, args ...interface{}) 
 	return httpError(http.StatusForbidden, errorCode, fmtString, args...)
 }
 
-func unprocessableEntityError(errorCode ErrorCode, fmtString string, args ...interface{}) *HTTPError {
+func unprocessableEntityError(
+	errorCode ErrorCode,
+	fmtString string,
+	args ...interface{},
+) *HTTPError {
 	return httpError(http.StatusUnprocessableEntity, errorCode, fmtString, args...)
 }
 
@@ -138,7 +142,12 @@ func (e *HTTPError) WithInternalMessage(fmtString string, args ...interface{}) *
 	return e
 }
 
-func httpError(httpStatus int, errorCode ErrorCode, fmtString string, args ...interface{}) *HTTPError {
+func httpError(
+	httpStatus int,
+	errorCode ErrorCode,
+	fmtString string,
+	args ...interface{},
+) *HTTPError {
 	return &HTTPError{
 		HTTPStatus: httpStatus,
 		ErrorCode:  errorCode,
@@ -189,7 +198,8 @@ func HandleResponseError(err error, w http.ResponseWriter, r *http.Request) {
 
 	apiVersion, averr := DetermineClosestAPIVersion(r.Header.Get(APIVersionHeaderName))
 	if averr != nil {
-		log.WithError(averr).Warn("Invalid version passed to " + APIVersionHeaderName + " header, defaulting to initial version")
+		log.WithError(averr).
+			Warn("Invalid version passed to " + APIVersionHeaderName + " header, defaulting to initial version")
 	} else if apiVersion != APIVersionInitial {
 		// Echo back the determined API version from the request
 		w.Header().Set(APIVersionHeaderName, FormatAPIVersion(apiVersion))

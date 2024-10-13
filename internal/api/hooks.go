@@ -14,15 +14,15 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/observability"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
 
+	"github.com/iamajoe/auth/internal/hooks"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/hooks"
 
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 const (
@@ -32,7 +32,12 @@ const (
 	PayloadLimit            = 200 * 1024 // 200KB
 )
 
-func (a *API) runPostgresHook(ctx context.Context, tx *storage.Connection, hookConfig conf.ExtensibilityPointConfiguration, input, output any) ([]byte, error) {
+func (a *API) runPostgresHook(
+	ctx context.Context,
+	tx *storage.Connection,
+	hookConfig conf.ExtensibilityPointConfiguration,
+	input, output any,
+) ([]byte, error) {
 	db := a.db.WithContext(ctx)
 
 	request, err := json.Marshal(input)
@@ -76,7 +81,11 @@ func (a *API) runPostgresHook(ctx context.Context, tx *storage.Connection, hookC
 	return response, nil
 }
 
-func (a *API) runHTTPHook(r *http.Request, hookConfig conf.ExtensibilityPointConfiguration, input any) ([]byte, error) {
+func (a *API) runHTTPHook(
+	r *http.Request,
+	hookConfig conf.ExtensibilityPointConfiguration,
+	input any,
+) ([]byte, error) {
 	ctx := r.Context()
 	client := http.Client{
 		Timeout: DefaultHTTPHookTimeout,
@@ -103,12 +112,22 @@ func (a *API) runHTTPHook(r *http.Request, hookConfig conf.ExtensibilityPointCon
 		}
 		msgID := uuid.Must(uuid.NewV4())
 		currentTime := time.Now()
-		signatureList, err := crypto.GenerateSignatures(hookConfig.HTTPHookSecrets, msgID, currentTime, inputPayload)
+		signatureList, err := crypto.GenerateSignatures(
+			hookConfig.HTTPHookSecrets,
+			msgID,
+			currentTime,
+			inputPayload,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewBuffer(inputPayload))
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			requestURL,
+			bytes.NewBuffer(inputPayload),
+		)
 		if err != nil {
 			panic("Failed to make request object")
 		}
@@ -122,7 +141,13 @@ func (a *API) runHTTPHook(r *http.Request, hookConfig conf.ExtensibilityPointCon
 
 		rsp, err := client.Do(req)
 		if err != nil && errors.Is(err, context.DeadlineExceeded) {
-			return nil, unprocessableEntityError(ErrorCodeHookTimeout, fmt.Sprintf("Failed to reach hook within maximum time of %f seconds", DefaultHTTPHookTimeout.Seconds()))
+			return nil, unprocessableEntityError(
+				ErrorCodeHookTimeout,
+				fmt.Sprintf(
+					"Failed to reach hook within maximum time of %f seconds",
+					DefaultHTTPHookTimeout.Seconds(),
+				),
+			)
 
 		} else if err != nil {
 			if terr, ok := err.(net.Error); ok && terr.Timeout() || i < DefaultHTTPHookRetries-1 {
@@ -143,14 +168,23 @@ func (a *API) runHTTPHook(r *http.Request, hookConfig conf.ExtensibilityPointCon
 			// Header.Get is case insensitive
 			contentType := rsp.Header.Get("Content-Type")
 			if contentType == "" {
-				return nil, badRequestError(ErrorCodeHookPayloadInvalidContentType, "Invalid Content-Type: Missing Content-Type header")
+				return nil, badRequestError(
+					ErrorCodeHookPayloadInvalidContentType,
+					"Invalid Content-Type: Missing Content-Type header",
+				)
 			}
 			mediaType, _, err := mime.ParseMediaType(contentType)
 			if err != nil {
-				return nil, badRequestError(ErrorCodeHookPayloadInvalidContentType, fmt.Sprintf("Invalid Content-Type header: %s", err.Error()))
+				return nil, badRequestError(
+					ErrorCodeHookPayloadInvalidContentType,
+					fmt.Sprintf("Invalid Content-Type header: %s", err.Error()),
+				)
 			}
 			if mediaType != "application/json" {
-				return nil, badRequestError(ErrorCodeHookPayloadInvalidContentType, "Invalid JSON response. Received content-type: "+contentType)
+				return nil, badRequestError(
+					ErrorCodeHookPayloadInvalidContentType,
+					"Invalid JSON response. Received content-type: "+contentType,
+				)
 			}
 			if rsp.Body == nil {
 				return nil, nil
@@ -163,7 +197,10 @@ func (a *API) runHTTPHook(r *http.Request, hookConfig conf.ExtensibilityPointCon
 			if limitedReader.N <= 0 {
 				// check if the response body still has excess bytes to be read
 				if n, _ := rsp.Body.Read(make([]byte, 1)); n > 0 {
-					return nil, unprocessableEntityError(ErrorCodeHookPayloadOverSizeLimit, fmt.Sprintf("Payload size exceeded size limit of %d bytes", PayloadLimit))
+					return nil, unprocessableEntityError(
+						ErrorCodeHookPayloadOverSizeLimit,
+						fmt.Sprintf("Payload size exceeded size limit of %d bytes", PayloadLimit),
+					)
 				}
 			}
 			return body, nil
@@ -342,7 +379,12 @@ func (a *API) invokeHook(conn *storage.Connection, r *http.Request, input, outpu
 	return nil
 }
 
-func (a *API) runHook(r *http.Request, conn *storage.Connection, hookConfig conf.ExtensibilityPointConfiguration, input, output any) ([]byte, error) {
+func (a *API) runHook(
+	r *http.Request,
+	conn *storage.Connection,
+	hookConfig conf.ExtensibilityPointConfiguration,
+	input, output any,
+) ([]byte, error) {
 	ctx := r.Context()
 
 	logEntry := observability.GetLogEntry(r)
@@ -357,7 +399,10 @@ func (a *API) runHook(r *http.Request, conn *storage.Connection, hookConfig conf
 	case strings.HasPrefix(hookConfig.URI, "pg-functions:"):
 		response, err = a.runPostgresHook(ctx, conn, hookConfig, input, output)
 	default:
-		return nil, fmt.Errorf("unsupported protocol: %q only postgres hooks and HTTPS functions are supported at the moment", hookConfig.URI)
+		return nil, fmt.Errorf(
+			"unsupported protocol: %q only postgres hooks and HTTPS functions are supported at the moment",
+			hookConfig.URI,
+		)
 	}
 
 	duration := time.Since(hookStart)
@@ -370,7 +415,10 @@ func (a *API) runHook(r *http.Request, conn *storage.Connection, hookConfig conf
 			"duration": duration.Microseconds(),
 		}).WithError(err).Warn("Hook errored out")
 
-		return nil, internalServerError("Error running hook URI: %v", hookConfig.URI).WithInternalError(err)
+		return nil, internalServerError(
+			"Error running hook URI: %v",
+			hookConfig.URI,
+		).WithInternalError(err)
 	}
 
 	logEntry.Entry.WithFields(logrus.Fields{

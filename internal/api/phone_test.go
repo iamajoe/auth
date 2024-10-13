@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type PhoneTestSuite struct {
@@ -116,7 +116,14 @@ func doTestSendPhoneConfirmation(ts *PhoneTestSuite, useTestOTP bool) {
 			provider := &TestSmsProvider{}
 			sms_provider.MockProvider = provider
 
-			_, err = ts.API.sendPhoneConfirmation(req, ts.API.db, u, "123456789", c.otpType, sms_provider.SMSProvider)
+			_, err = ts.API.sendPhoneConfirmation(
+				req,
+				ts.API.db,
+				u,
+				"123456789",
+				c.otpType,
+				sms_provider.SMSProvider,
+			)
 			require.Equal(ts.T(), c.expected, err)
 			u, err = models.FindUserByPhoneAndAudience(ts.API.db, "123456789", ts.Config.JWT.Aud)
 			require.NoError(ts.T(), err)
@@ -429,7 +436,10 @@ func (ts *PhoneTestSuite) TestSendSMSHook() {
 			require.Equal(t, c.expectedCode, w.Code, "Unexpected HTTP status code")
 
 			// Delete the function and reset env
-			cleanupHookSQL := fmt.Sprintf("drop function if exists %s", ts.Config.Hook.SendSMS.HookName)
+			cleanupHookSQL := fmt.Sprintf(
+				"drop function if exists %s",
+				ts.Config.Hook.SendSMS.HookName,
+			)
 			require.NoError(t, ts.API.db.RawQuery(cleanupHookSQL).Exec())
 			ts.Config.Hook.SendSMS.Enabled = false
 			ts.Config.Sms.MaxFrequency = 1 * time.Second

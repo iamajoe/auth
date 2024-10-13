@@ -6,11 +6,11 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 // OtpParams contains the request body params for the otp endpoint
@@ -35,10 +35,16 @@ type SmsParams struct {
 
 func (p *OtpParams) Validate() error {
 	if p.Email != "" && p.Phone != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Only an email address or phone number should be provided")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Only an email address or phone number should be provided",
+		)
 	}
 	if p.Email != "" && p.Channel != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Channel should only be specified with Phone OTP")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Channel should only be specified with Phone OTP",
+		)
 	}
 	if err := validatePKCEParams(p.CodeChallengeMethod, p.CodeChallenge); err != nil {
 		return err
@@ -190,7 +196,14 @@ func (a *API) SmsOtp(w http.ResponseWriter, r *http.Request) error {
 		}); err != nil {
 			return err
 		}
-		mID, serr := a.sendPhoneConfirmation(r, tx, user, params.Phone, phoneConfirmationOtp, params.Channel)
+		mID, serr := a.sendPhoneConfirmation(
+			r,
+			tx,
+			user,
+			params.Phone,
+			phoneConfirmationOtp,
+			params.Channel,
+		)
 		if serr != nil {
 			return serr
 		}

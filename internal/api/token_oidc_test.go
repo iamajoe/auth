@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
 )
 
 type TokenOIDCTestSuite struct {
@@ -36,7 +36,11 @@ func SetupTestOIDCProvider(ts *TokenOIDCTestSuite) *httptest.Server {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"issuer":"` + server.URL + `","authorization_endpoint":"` + server.URL + `/authorize","token_endpoint":"` + server.URL + `/token","jwks_uri":"` + server.URL + `/jwks"}`))
+			w.Write(
+				[]byte(
+					`{"issuer":"` + server.URL + `","authorization_endpoint":"` + server.URL + `/authorize","token_endpoint":"` + server.URL + `/token","jwks_uri":"` + server.URL + `/jwks"}`,
+				),
+			)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -60,7 +64,11 @@ func (ts *TokenOIDCTestSuite) TestGetProvider() {
 	ts.Config.External.AllowedIdTokenIssuers = []string{server.URL}
 
 	req := httptest.NewRequest(http.MethodPost, "http://localhost", nil)
-	oidcProvider, skipNonceCheck, providerType, acceptableClientIds, err := params.getProvider(context.Background(), ts.Config, req)
+	oidcProvider, skipNonceCheck, providerType, acceptableClientIds, err := params.getProvider(
+		context.Background(),
+		ts.Config,
+		req,
+	)
 	require.NoError(ts.T(), err)
 	require.NotNil(ts.T(), oidcProvider)
 	require.False(ts.T(), skipNonceCheck)

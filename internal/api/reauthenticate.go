@@ -3,11 +3,11 @@ package api
 import (
 	"net/http"
 
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 const InvalidNonceMessage = "Nonce has expired or is invalid"
@@ -21,12 +21,18 @@ func (a *API) Reauthenticate(w http.ResponseWriter, r *http.Request) error {
 	email, phone := user.GetEmail(), user.GetPhone()
 
 	if email == "" && phone == "" {
-		return badRequestError(ErrorCodeValidationFailed, "Reauthentication requires the user to have an email or a phone number")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Reauthentication requires the user to have an email or a phone number",
+		)
 	}
 
 	if email != "" {
 		if !user.IsConfirmed() {
-			return unprocessableEntityError(ErrorCodeEmailNotConfirmed, "Please verify your email first.")
+			return unprocessableEntityError(
+				ErrorCodeEmailNotConfirmed,
+				"Please verify your email first.",
+			)
 		}
 	} else if phone != "" {
 		if !user.IsPhoneConfirmed() {
@@ -65,14 +71,24 @@ func (a *API) Reauthenticate(w http.ResponseWriter, r *http.Request) error {
 }
 
 // verifyReauthentication checks if the nonce provided is valid
-func (a *API) verifyReauthentication(nonce string, tx *storage.Connection, config *conf.GlobalConfiguration, user *models.User) error {
+func (a *API) verifyReauthentication(
+	nonce string,
+	tx *storage.Connection,
+	config *conf.GlobalConfiguration,
+	user *models.User,
+) error {
 	if user.ReauthenticationToken == "" || user.ReauthenticationSentAt == nil {
 		return unprocessableEntityError(ErrorCodeReauthenticationNotValid, InvalidNonceMessage)
 	}
 	var isValid bool
 	if user.GetEmail() != "" {
 		tokenHash := crypto.GenerateTokenHash(user.GetEmail(), nonce)
-		isValid = isOtpValid(tokenHash, user.ReauthenticationToken, user.ReauthenticationSentAt, config.Mailer.OtpExp)
+		isValid = isOtpValid(
+			tokenHash,
+			user.ReauthenticationToken,
+			user.ReauthenticationSentAt,
+			config.Mailer.OtpExp,
+		)
 	} else if user.GetPhone() != "" {
 		if config.Sms.IsTwilioVerifyProvider() {
 			smsProvider, _ := sms_provider.GetSmsProvider(*config)

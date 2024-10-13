@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
-	"github.com/supabase/auth/internal/api/sms_provider"
-	mail "github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	mail "github.com/iamajoe/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // ResendConfirmationParams holds the parameters for a resend request
@@ -20,11 +20,17 @@ func (p *ResendConfirmationParams) Validate(a *API) error {
 	config := a.config
 
 	switch p.Type {
-	case mail.SignupVerification, mail.EmailChangeVerification, smsVerification, phoneChangeVerification:
+	case mail.SignupVerification,
+		mail.EmailChangeVerification,
+		smsVerification,
+		phoneChangeVerification:
 		break
 	default:
 		// type does not match one of the above
-		return badRequestError(ErrorCodeValidationFailed, "Missing one of these types: signup, email_change, sms, phone_change")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Missing one of these types: signup, email_change, sms, phone_change",
+		)
 
 	}
 	if p.Email == "" && p.Type == mail.SignupVerification {
@@ -36,7 +42,10 @@ func (p *ResendConfirmationParams) Validate(a *API) error {
 
 	var err error
 	if p.Email != "" && p.Phone != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Only an email address or phone number should be provided.")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Only an email address or phone number should be provided.",
+		)
 	} else if p.Email != "" {
 		if !config.External.Email.Enabled {
 			return badRequestError(ErrorCodeEmailProviderDisabled, "Email logins are disabled")
@@ -125,7 +134,14 @@ func (a *API) Resend(w http.ResponseWriter, r *http.Request) error {
 			if terr := models.NewAuditLogEntry(r, tx, user, models.UserRecoveryRequestedAction, "", nil); terr != nil {
 				return terr
 			}
-			mID, terr := a.sendPhoneConfirmation(r, tx, user, params.Phone, phoneConfirmationOtp, sms_provider.SMSProvider)
+			mID, terr := a.sendPhoneConfirmation(
+				r,
+				tx,
+				user,
+				params.Phone,
+				phoneConfirmationOtp,
+				sms_provider.SMSProvider,
+			)
 			if terr != nil {
 				return terr
 			}
@@ -133,7 +149,14 @@ func (a *API) Resend(w http.ResponseWriter, r *http.Request) error {
 		case mail.EmailChangeVerification:
 			return a.sendEmailChange(r, tx, user, user.EmailChange, models.ImplicitFlow)
 		case phoneChangeVerification:
-			mID, terr := a.sendPhoneConfirmation(r, tx, user, user.PhoneChange, phoneChangeVerification, sms_provider.SMSProvider)
+			mID, terr := a.sendPhoneConfirmation(
+				r,
+				tx,
+				user,
+				user.PhoneChange,
+				phoneChangeVerification,
+				sms_provider.SMSProvider,
+			)
 			if terr != nil {
 				return terr
 			}

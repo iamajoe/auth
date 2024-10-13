@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/badoux/checkmail"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 )
 
 type MailClient interface {
@@ -88,7 +88,12 @@ func (m TemplateMailer) ValidateEmail(email string) error {
 }
 
 // InviteMail sends a invite mail to a new user
-func (m *TemplateMailer) InviteMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error {
+func (m *TemplateMailer) InviteMail(
+	r *http.Request,
+	user *models.User,
+	otp, referrerURL string,
+	externalURL *url.URL,
+) error {
 	path, err := getPath(m.Config.Mailer.URLPaths.Invite, &EmailParams{
 		Token:      user.ConfirmationToken,
 		Type:       "invite",
@@ -119,7 +124,12 @@ func (m *TemplateMailer) InviteMail(r *http.Request, user *models.User, otp, ref
 }
 
 // ConfirmationMail sends a signup confirmation mail to a new user
-func (m *TemplateMailer) ConfirmationMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error {
+func (m *TemplateMailer) ConfirmationMail(
+	r *http.Request,
+	user *models.User,
+	otp, referrerURL string,
+	externalURL *url.URL,
+) error {
 	path, err := getPath(m.Config.Mailer.URLPaths.Confirmation, &EmailParams{
 		Token:      user.ConfirmationToken,
 		Type:       "signup",
@@ -167,7 +177,12 @@ func (m *TemplateMailer) ReauthenticateMail(r *http.Request, user *models.User, 
 }
 
 // EmailChangeMail sends an email change confirmation mail to a user
-func (m *TemplateMailer) EmailChangeMail(r *http.Request, user *models.User, otpNew, otpCurrent, referrerURL string, externalURL *url.URL) error {
+func (m *TemplateMailer) EmailChangeMail(
+	r *http.Request,
+	user *models.User,
+	otpNew, otpCurrent, referrerURL string,
+	externalURL *url.URL,
+) error {
 	type Email struct {
 		Address   string
 		Otp       string
@@ -242,7 +257,12 @@ func (m *TemplateMailer) EmailChangeMail(r *http.Request, user *models.User, otp
 }
 
 // RecoveryMail sends a password recovery mail
-func (m *TemplateMailer) RecoveryMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error {
+func (m *TemplateMailer) RecoveryMail(
+	r *http.Request,
+	user *models.User,
+	otp, referrerURL string,
+	externalURL *url.URL,
+) error {
 	path, err := getPath(m.Config.Mailer.URLPaths.Recovery, &EmailParams{
 		Token:      user.RecoveryToken,
 		Type:       "recovery",
@@ -271,7 +291,12 @@ func (m *TemplateMailer) RecoveryMail(r *http.Request, user *models.User, otp, r
 }
 
 // MagicLinkMail sends a login link mail
-func (m *TemplateMailer) MagicLinkMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error {
+func (m *TemplateMailer) MagicLinkMail(
+	r *http.Request,
+	user *models.User,
+	otp, referrerURL string,
+	externalURL *url.URL,
+) error {
 	path, err := getPath(m.Config.Mailer.URLPaths.Recovery, &EmailParams{
 		Token:      user.RecoveryToken,
 		Type:       "magiclink",
@@ -301,7 +326,11 @@ func (m *TemplateMailer) MagicLinkMail(r *http.Request, user *models.User, otp, 
 }
 
 // Send can be used to send one-off emails to users
-func (m TemplateMailer) Send(user *models.User, subject, body string, data map[string]interface{}) error {
+func (m TemplateMailer) Send(
+	user *models.User,
+	subject, body string,
+	data map[string]interface{},
+) error {
 	return m.Mailer.Mail(
 		user.GetEmail(),
 		subject,
@@ -312,7 +341,11 @@ func (m TemplateMailer) Send(user *models.User, subject, body string, data map[s
 }
 
 // GetEmailActionLink returns a magiclink, recovery or invite link based on the actionType passed.
-func (m TemplateMailer) GetEmailActionLink(user *models.User, actionType, referrerURL string, externalURL *url.URL) (string, error) {
+func (m TemplateMailer) GetEmailActionLink(
+	user *models.User,
+	actionType, referrerURL string,
+	externalURL *url.URL,
+) (string, error) {
 	var err error
 	var path *url.URL
 

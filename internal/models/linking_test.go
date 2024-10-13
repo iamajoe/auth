@@ -3,12 +3,12 @@ package models
 import (
 	"testing"
 
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
 )
 
 type AccountLinkingTestSuite struct {
@@ -45,13 +45,27 @@ func (ts *AccountLinkingTestSuite) TestCreateAccountDecisionNoAccounts() {
 		Verified: true,
 		Primary:  true,
 	}
-	decision, err := DetermineAccountLinking(ts.db, ts.config, []provider.Email{testEmail}, ts.config.JWT.Aud, "provider", "abcdefgh")
+	decision, err := DetermineAccountLinking(
+		ts.db,
+		ts.config,
+		[]provider.Email{testEmail},
+		ts.config.JWT.Aud,
+		"provider",
+		"abcdefgh",
+	)
 	require.NoError(ts.T(), err)
 
 	require.Equal(ts.T(), decision.Decision, CreateAccount)
 
 	// when there are no accounts in the system -- SSO provider
-	decision, err = DetermineAccountLinking(ts.db, ts.config, []provider.Email{testEmail}, ts.config.JWT.Aud, "sso:f06f9e3d-ff92-4c47-a179-7acf1fda6387", "abcdefgh")
+	decision, err = DetermineAccountLinking(
+		ts.db,
+		ts.config,
+		[]provider.Email{testEmail},
+		ts.config.JWT.Aud,
+		"sso:f06f9e3d-ff92-4c47-a179-7acf1fda6387",
+		"abcdefgh",
+	)
 	require.NoError(ts.T(), err)
 
 	require.Equal(ts.T(), decision.Decision, CreateAccount)
@@ -146,10 +160,14 @@ func (ts *AccountLinkingTestSuite) TestLinkingScenarios() {
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.db.Create(userB))
 
-	identityB, err := NewIdentity(userB, "sso:f06f9e3d-ff92-4c47-a179-7acf1fda6387", map[string]interface{}{
-		"sub":   userB.ID.String(),
-		"email": "test@samltest.id",
-	})
+	identityB, err := NewIdentity(
+		userB,
+		"sso:f06f9e3d-ff92-4c47-a179-7acf1fda6387",
+		map[string]interface{}{
+			"sub":   userB.ID.String(),
+			"email": "test@samltest.id",
+		},
+	)
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.db.Create(identityB))
 
@@ -265,13 +283,28 @@ func (ts *AccountLinkingTestSuite) TestLinkingScenarios() {
 
 	for _, c := range cases {
 		ts.Run(c.desc, func() {
-			decision, err := DetermineAccountLinking(ts.db, ts.config, []provider.Email{c.email}, ts.config.JWT.Aud, c.provider, c.sub)
+			decision, err := DetermineAccountLinking(
+				ts.db,
+				ts.config,
+				[]provider.Email{c.email},
+				ts.config.JWT.Aud,
+				c.provider,
+				c.sub,
+			)
 			require.NoError(ts.T(), err)
 			require.Equal(ts.T(), c.decision.Decision, decision.Decision)
 			require.Equal(ts.T(), c.decision.LinkingDomain, decision.LinkingDomain)
 			require.Equal(ts.T(), c.decision.CandidateEmail.Email, decision.CandidateEmail.Email)
-			require.Equal(ts.T(), c.decision.CandidateEmail.Verified, decision.CandidateEmail.Verified)
-			require.Equal(ts.T(), c.decision.CandidateEmail.Primary, decision.CandidateEmail.Primary)
+			require.Equal(
+				ts.T(),
+				c.decision.CandidateEmail.Verified,
+				decision.CandidateEmail.Verified,
+			)
+			require.Equal(
+				ts.T(),
+				c.decision.CandidateEmail.Primary,
+				decision.CandidateEmail.Primary,
+			)
 		})
 	}
 

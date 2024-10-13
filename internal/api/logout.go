@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 type LogoutBehavior string
@@ -34,7 +34,10 @@ func (a *API) Logout(w http.ResponseWriter, r *http.Request) error {
 			scope = LogoutOthers
 
 		default:
-			return badRequestError(ErrorCodeValidationFailed, fmt.Sprintf("Unsupported logout scope %q", r.URL.Query().Get("scope")))
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				fmt.Sprintf("Unsupported logout scope %q", r.URL.Query().Get("scope")),
+			)
 		}
 	}
 

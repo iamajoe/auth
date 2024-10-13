@@ -5,10 +5,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/supabase/auth/internal/models"
+	"github.com/iamajoe/auth/internal/models"
 )
 
-func sort(r *http.Request, allowedFields map[string]bool, defaultSort []models.SortField) (*models.SortParams, error) {
+func sort(
+	r *http.Request,
+	allowedFields map[string]bool,
+	defaultSort []models.SortField,
+) (*models.SortParams, error) {
 	sortParams := &models.SortParams{
 		Fields: defaultSort,
 	}
@@ -30,7 +34,10 @@ func sort(r *http.Request, allowedFields map[string]bool, defaultSort []models.S
 				case string(models.Descending):
 					dir = models.Descending
 				default:
-					return nil, fmt.Errorf("bad direction for sort '%v', only 'asc' and 'desc' allowed", parts[1])
+					return nil, fmt.Errorf(
+						"bad direction for sort '%v', only 'asc' and 'desc' allowed",
+						parts[1],
+					)
 				}
 			}
 			sortParams.Fields = append(sortParams.Fields, models.SortField{Name: field, Dir: dir})

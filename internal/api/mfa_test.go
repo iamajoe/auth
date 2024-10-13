@@ -12,12 +12,12 @@ import (
 
 	"github.com/gofrs/uuid"
 
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/pquerna/otp"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/utilities"
 
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
@@ -59,7 +59,15 @@ func (ts *MFATestSuite) SetupTest() {
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error saving new test user")
 	// Create Factor
 	f := models.NewTOTPFactor(u, "test_factor")
-	require.NoError(ts.T(), f.SetSecret("secretkey", ts.Config.Security.DBEncryption.Encrypt, ts.Config.Security.DBEncryption.EncryptionKeyID, ts.Config.Security.DBEncryption.EncryptionKey))
+	require.NoError(
+		ts.T(),
+		f.SetSecret(
+			"secretkey",
+			ts.Config.Security.DBEncryption.Encrypt,
+			ts.Config.Security.DBEncryption.EncryptionKeyID,
+			ts.Config.Security.DBEncryption.EncryptionKey,
+		),
+	)
 	require.NoError(ts.T(), ts.API.db.Create(f), "Error saving new test factor")
 	// Create corresponding session
 	s, err := models.NewSession(u.ID, &f.ID)
@@ -182,7 +190,15 @@ func (ts *MFATestSuite) TestEnrollFactor() {
 	}
 	for _, c := range cases {
 		ts.Run(c.desc, func() {
-			w := performEnrollFlow(ts, token, c.friendlyName, c.factorType, c.issuer, c.phone, c.expectedCode)
+			w := performEnrollFlow(
+				ts,
+				token,
+				c.friendlyName,
+				c.factorType,
+				c.issuer,
+				c.phone,
+				c.expectedCode,
+			)
 			enrollResp := EnrollFactorResponse{}
 			require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&enrollResp))
 
@@ -197,7 +213,8 @@ func (ts *MFATestSuite) TestEnrollFactor() {
 
 				if c.factorType == models.TOTP {
 					qrCode := enrollResp.TOTP.QRCode
-					hasSVGStartAndEnd := strings.Contains(qrCode, "<svg") && strings.Contains(qrCode, "</svg>")
+					hasSVGStartAndEnd := strings.Contains(qrCode, "<svg") &&
+						strings.Contains(qrCode, "</svg>")
 					require.True(ts.T(), hasSVGStartAndEnd)
 					require.Equal(ts.T(), c.friendlyName, enrollResp.FriendlyName)
 				}
@@ -246,9 +263,25 @@ func (ts *MFATestSuite) TestDuplicateEnrollPhoneFactor() {
 		ts.Run(c.desc, func() {
 			// Delete all test factors to start from clean slate
 			require.NoError(ts.T(), ts.API.db.Destroy(ts.TestUser.Factors))
-			_ = performEnrollFlow(ts, token, c.earlierFactorName, models.Phone, ts.TestDomain, c.phone, http.StatusOK)
+			_ = performEnrollFlow(
+				ts,
+				token,
+				c.earlierFactorName,
+				models.Phone,
+				ts.TestDomain,
+				c.phone,
+				http.StatusOK,
+			)
 
-			w := performEnrollFlow(ts, token, c.laterFactorName, models.Phone, ts.TestDomain, c.secondPhone, http.StatusOK)
+			w := performEnrollFlow(
+				ts,
+				token,
+				c.laterFactorName,
+				models.Phone,
+				ts.TestDomain,
+				c.secondPhone,
+				http.StatusOK,
+			)
 			enrollResp := EnrollFactorResponse{}
 			require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&enrollResp))
 
@@ -269,23 +302,42 @@ func (ts *MFATestSuite) TestDuplicateEnrollPhoneFactorWithVerified() {
 	altFriendlyName := "alt_phone_factor"
 	token := ts.generateAAL1Token(ts.TestUser, &ts.TestSession.ID)
 
-	ts.Run("Phone: Enrolling a factor with the same number as an existing verified phone factor should result in an error", func() {
-		require.NoError(ts.T(), ts.API.db.Destroy(ts.TestUser.Factors))
+	ts.Run(
+		"Phone: Enrolling a factor with the same number as an existing verified phone factor should result in an error",
+		func() {
+			require.NoError(ts.T(), ts.API.db.Destroy(ts.TestUser.Factors))
 
-		// Setup verified factor
-		w := performEnrollFlow(ts, token, friendlyName, models.Phone, ts.TestDomain, testPhoneNumber, http.StatusOK)
-		enrollResp := EnrollFactorResponse{}
-		require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&enrollResp))
-		firstFactor, err := models.FindFactorByFactorID(ts.API.db, enrollResp.ID)
-		require.NoError(ts.T(), err)
-		require.NoError(ts.T(), firstFactor.UpdateStatus(ts.API.db, models.FactorStateVerified))
+			// Setup verified factor
+			w := performEnrollFlow(
+				ts,
+				token,
+				friendlyName,
+				models.Phone,
+				ts.TestDomain,
+				testPhoneNumber,
+				http.StatusOK,
+			)
+			enrollResp := EnrollFactorResponse{}
+			require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&enrollResp))
+			firstFactor, err := models.FindFactorByFactorID(ts.API.db, enrollResp.ID)
+			require.NoError(ts.T(), err)
+			require.NoError(ts.T(), firstFactor.UpdateStatus(ts.API.db, models.FactorStateVerified))
 
-		expectedStatusCode := http.StatusUnprocessableEntity
-		_ = performEnrollFlow(ts, token, altFriendlyName, models.Phone, ts.TestDomain, testPhoneNumber, expectedStatusCode)
+			expectedStatusCode := http.StatusUnprocessableEntity
+			_ = performEnrollFlow(
+				ts,
+				token,
+				altFriendlyName,
+				models.Phone,
+				ts.TestDomain,
+				testPhoneNumber,
+				expectedStatusCode,
+			)
 
-		require.NoError(ts.T(), ts.API.db.Eager("Factors").Find(ts.TestUser, ts.TestUser.ID))
-		require.Equal(ts.T(), len(ts.TestUser.Factors), 1)
-	})
+			require.NoError(ts.T(), ts.API.db.Eager("Factors").Find(ts.TestUser, ts.TestUser.ID))
+			require.Equal(ts.T(), len(ts.TestUser.Factors), 1)
+		},
+	)
 }
 
 func (ts *MFATestSuite) TestDuplicateTOTPEnrollsReturnExpectedMessage() {
@@ -293,7 +345,15 @@ func (ts *MFATestSuite) TestDuplicateTOTPEnrollsReturnExpectedMessage() {
 	issuer := "https://issuer.com"
 	token := ts.generateAAL1Token(ts.TestUser, &ts.TestSession.ID)
 	_ = performEnrollFlow(ts, token, friendlyName, models.TOTP, issuer, "", http.StatusOK)
-	response := performEnrollFlow(ts, token, friendlyName, models.TOTP, issuer, "", http.StatusUnprocessableEntity)
+	response := performEnrollFlow(
+		ts,
+		token,
+		friendlyName,
+		models.TOTP,
+		issuer,
+		"",
+		http.StatusUnprocessableEntity,
+	)
 
 	var errorResponse HTTPError
 	err := json.NewDecoder(response.Body).Decode(&errorResponse)
@@ -303,7 +363,12 @@ func (ts *MFATestSuite) TestDuplicateTOTPEnrollsReturnExpectedMessage() {
 }
 
 func (ts *MFATestSuite) AAL2RequiredToUpdatePasswordAfterEnrollment() {
-	resp := performTestSignupAndVerify(ts, ts.TestEmail, ts.TestPassword, true /* <- requireStatusOK */)
+	resp := performTestSignupAndVerify(
+		ts,
+		ts.TestEmail,
+		ts.TestPassword,
+		true, /* <- requireStatusOK */
+	)
 	accessTokenResp := &AccessTokenResponse{}
 	require.NoError(ts.T(), json.NewDecoder(resp.Body).Decode(&accessTokenResp))
 
@@ -340,7 +405,11 @@ func (ts *MFATestSuite) AAL2RequiredToUpdatePasswordAfterEnrollment() {
 		"password": newPassword,
 	}))
 
-	req = httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
@@ -368,7 +437,12 @@ func (ts *MFATestSuite) TestMultipleEnrollsCleanupExpiredFactors() {
 	// All factors are deleted when a subsequent enroll is made
 	ts.API.config.MFA.FactorExpiryDuration = 0 * time.Second
 	// Verified factor should not be deleted (Factor 1)
-	resp := performTestSignupAndVerify(ts, ts.TestEmail, ts.TestPassword, true /* <- requireStatusOK */)
+	resp := performTestSignupAndVerify(
+		ts,
+		ts.TestEmail,
+		ts.TestPassword,
+		true, /* <- requireStatusOK */
+	)
 	numFactors := 5
 	accessTokenResp := &AccessTokenResponse{}
 	require.NoError(ts.T(), json.NewDecoder(resp.Body).Decode(&accessTokenResp))
@@ -376,7 +450,15 @@ func (ts *MFATestSuite) TestMultipleEnrollsCleanupExpiredFactors() {
 	var w *httptest.ResponseRecorder
 	token := accessTokenResp.Token
 	for i := 0; i < numFactors; i++ {
-		w = performEnrollFlow(ts, token, "first-name", models.TOTP, "https://issuer.com", "", http.StatusOK)
+		w = performEnrollFlow(
+			ts,
+			token,
+			"first-name",
+			models.TOTP,
+			"https://issuer.com",
+			"",
+			http.StatusOK,
+		)
 	}
 
 	enrollResp := EnrollFactorResponse{}
@@ -386,7 +468,15 @@ func (ts *MFATestSuite) TestMultipleEnrollsCleanupExpiredFactors() {
 	_ = performChallengeFlow(ts, enrollResp.ID, token)
 
 	// Enroll another Factor (Factor 3)
-	_ = performEnrollFlow(ts, token, "second-name", models.TOTP, "https://issuer.com", "", http.StatusOK)
+	_ = performEnrollFlow(
+		ts,
+		token,
+		"second-name",
+		models.TOTP,
+		"https://issuer.com",
+		"",
+		http.StatusOK,
+	)
 	require.NoError(ts.T(), ts.API.db.Eager("Factors").Find(ts.TestUser, ts.TestUser.ID))
 	require.Equal(ts.T(), 3, len(ts.TestUser.Factors))
 }
@@ -533,7 +623,11 @@ func (ts *MFATestSuite) TestMFAVerifyFactor() {
 			}
 
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/factors/%s/verify", f.ID), &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				fmt.Sprintf("/factors/%s/verify", f.ID),
+				&buffer,
+			)
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 			var c *models.Challenge
@@ -550,7 +644,10 @@ func (ts *MFATestSuite) TestMFAVerifyFactor() {
 			}
 
 			if !v.validCode && v.factorType == models.TOTP {
-				code, err = totp.GenerateCode(sharedSecret, time.Now().UTC().Add(-1*time.Minute*time.Duration(1)))
+				code, err = totp.GenerateCode(
+					sharedSecret,
+					time.Now().UTC().Add(-1*time.Minute*time.Duration(1)),
+				)
 				require.NoError(ts.T(), err)
 
 			} else if !v.validCode && v.factorType == models.Phone {
@@ -561,9 +658,12 @@ func (ts *MFATestSuite) TestMFAVerifyFactor() {
 			require.NoError(ts.T(), ts.API.db.Create(c), "Error saving new test challenge")
 			if !v.validChallenge {
 				// Set challenge creation so that it has expired in present time.
-				newCreatedAt := time.Now().UTC().Add(-1 * time.Second * time.Duration(ts.Config.MFA.ChallengeExpiryDuration+1))
+				newCreatedAt := time.Now().
+					UTC().
+					Add(-1 * time.Second * time.Duration(ts.Config.MFA.ChallengeExpiryDuration+1))
 				// created_at is managed by buffalo(ORM) needs to be raw query to be updated
-				err := ts.API.db.RawQuery("UPDATE auth.mfa_challenges SET created_at = ? WHERE factor_id = ?", newCreatedAt, f.ID).Exec()
+				err := ts.API.db.RawQuery("UPDATE auth.mfa_challenges SET created_at = ? WHERE factor_id = ?", newCreatedAt, f.ID).
+					Exec()
 				require.NoError(ts.T(), err, "Error updating new test challenge")
 			}
 
@@ -617,7 +717,13 @@ func (ts *MFATestSuite) TestUnenrollVerifiedFactor() {
 				ts.TestSession.UpdateAALAndAssociatedFactor(ts.API.db, models.AAL2, &f.ID)
 			}
 			token := ts.generateAAL1Token(ts.TestUser, &ts.TestSession.ID)
-			w := ServeAuthenticatedRequest(ts, http.MethodDelete, fmt.Sprintf("/factors/%s", f.ID), token, buffer)
+			w := ServeAuthenticatedRequest(
+				ts,
+				http.MethodDelete,
+				fmt.Sprintf("/factors/%s", f.ID),
+				token,
+				buffer,
+			)
 			require.Equal(ts.T(), v.expectedHTTPCode, w.Code)
 
 			if v.expectedHTTPCode == http.StatusOK {
@@ -642,7 +748,13 @@ func (ts *MFATestSuite) TestUnenrollUnverifiedFactor() {
 		"factor_id": f.ID,
 	}))
 
-	w := ServeAuthenticatedRequest(ts, http.MethodDelete, fmt.Sprintf("/factors/%s", f.ID), token, buffer)
+	w := ServeAuthenticatedRequest(
+		ts,
+		http.MethodDelete,
+		fmt.Sprintf("/factors/%s", f.ID),
+		token,
+		buffer,
+	)
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 
 	_, err := models.FindFactorByFactorID(ts.API.db, f.ID)
@@ -656,7 +768,12 @@ func (ts *MFATestSuite) TestUnenrollUnverifiedFactor() {
 // Integration Tests
 func (ts *MFATestSuite) TestSessionsMaintainAALOnRefresh() {
 	ts.Config.Security.RefreshTokenRotationEnabled = true
-	resp := performTestSignupAndVerify(ts, ts.TestEmail, ts.TestPassword, true /* <- requireStatusOK */)
+	resp := performTestSignupAndVerify(
+		ts,
+		ts.TestEmail,
+		ts.TestPassword,
+		true, /* <- requireStatusOK */
+	)
 	accessTokenResp := &AccessTokenResponse{}
 	require.NoError(ts.T(), json.NewDecoder(resp.Body).Decode(&accessTokenResp))
 
@@ -665,7 +782,11 @@ func (ts *MFATestSuite) TestSessionsMaintainAALOnRefresh() {
 		"refresh_token": accessTokenResp.RefreshToken,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
@@ -684,7 +805,12 @@ func (ts *MFATestSuite) TestSessionsMaintainAALOnRefresh() {
 // Performing MFA Verification followed by a sign in should return an AAL1 session and an AAL2 session
 func (ts *MFATestSuite) TestMFAFollowedByPasswordSignIn() {
 	ts.Config.Security.RefreshTokenRotationEnabled = true
-	resp := performTestSignupAndVerify(ts, ts.TestEmail, ts.TestPassword, true /* <- requireStatusOK */)
+	resp := performTestSignupAndVerify(
+		ts,
+		ts.TestEmail,
+		ts.TestPassword,
+		true, /* <- requireStatusOK */
+	)
 	accessTokenResp := &AccessTokenResponse{}
 	require.NoError(ts.T(), json.NewDecoder(resp.Body).Decode(&accessTokenResp))
 
@@ -693,7 +819,11 @@ func (ts *MFATestSuite) TestMFAFollowedByPasswordSignIn() {
 		"email":    ts.TestEmail,
 		"password": ts.TestPassword,
 	}))
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
@@ -725,11 +855,22 @@ func (ts *MFATestSuite) TestChallengeWebAuthnFactor() {
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 }
 
-func performChallengeWebAuthnFlow(ts *MFATestSuite, factorID uuid.UUID, token string, webauthn *WebAuthnParams) *httptest.ResponseRecorder {
+func performChallengeWebAuthnFlow(
+	ts *MFATestSuite,
+	factorID uuid.UUID,
+	token string,
+	webauthn *WebAuthnParams,
+) *httptest.ResponseRecorder {
 	var buffer bytes.Buffer
 	err := json.NewEncoder(&buffer).Encode(ChallengeFactorParams{WebAuthn: webauthn})
 	require.NoError(ts.T(), err)
-	w := ServeAuthenticatedRequest(ts, http.MethodPost, fmt.Sprintf("http://localhost/factors/%s/challenge", factorID), token, buffer)
+	w := ServeAuthenticatedRequest(
+		ts,
+		http.MethodPost,
+		fmt.Sprintf("http://localhost/factors/%s/challenge", factorID),
+		token,
+		buffer,
+	)
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 	return w
 }
@@ -746,7 +887,13 @@ func (ts *MFATestSuite) TestChallengeFactorNotOwnedByUser() {
 	otherUsersPhoneFactor := models.NewPhoneFactor(ts.TestUser, phoneNumber, friendlyName)
 	require.NoError(ts.T(), ts.API.db.Create(otherUsersPhoneFactor), "Error creating factor")
 
-	w := ServeAuthenticatedRequest(ts, http.MethodPost, fmt.Sprintf("http://localhost/factors/%s/challenge", otherUsersPhoneFactor.ID), signUpResp.Token, buffer)
+	w := ServeAuthenticatedRequest(
+		ts,
+		http.MethodPost,
+		fmt.Sprintf("http://localhost/factors/%s/challenge", otherUsersPhoneFactor.ID),
+		signUpResp.Token,
+		buffer,
+	)
 
 	expectedError := notFoundError(ErrorCodeMFAFactorNotFound, "Factor not found")
 
@@ -778,7 +925,11 @@ func signUp(ts *MFATestSuite, email, password string) (signUpResp AccessTokenRes
 	return data
 }
 
-func performTestSignupAndVerify(ts *MFATestSuite, email, password string, requireStatusOK bool) *httptest.ResponseRecorder {
+func performTestSignupAndVerify(
+	ts *MFATestSuite,
+	email, password string,
+	requireStatusOK bool,
+) *httptest.ResponseRecorder {
 	signUpResp := signUp(ts, email, password)
 	resp := performEnrollAndVerify(ts, signUpResp.Token, requireStatusOK)
 
@@ -786,15 +937,28 @@ func performTestSignupAndVerify(ts *MFATestSuite, email, password string, requir
 
 }
 
-func performEnrollFlow(ts *MFATestSuite, token, friendlyName, factorType, issuer string, phone string, expectedCode int) *httptest.ResponseRecorder {
+func performEnrollFlow(
+	ts *MFATestSuite,
+	token, friendlyName, factorType, issuer string,
+	phone string,
+	expectedCode int,
+) *httptest.ResponseRecorder {
 	var buffer bytes.Buffer
-	require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(EnrollFactorParams{FriendlyName: friendlyName, FactorType: factorType, Issuer: issuer, Phone: phone}))
+	require.NoError(
+		ts.T(),
+		json.NewEncoder(&buffer).
+			Encode(EnrollFactorParams{FriendlyName: friendlyName, FactorType: factorType, Issuer: issuer, Phone: phone}),
+	)
 	w := ServeAuthenticatedRequest(ts, http.MethodPost, "http://localhost/factors/", token, buffer)
 	require.Equal(ts.T(), expectedCode, w.Code)
 	return w
 }
 
-func ServeAuthenticatedRequest(ts *MFATestSuite, method, path, token string, buffer bytes.Buffer) *httptest.ResponseRecorder {
+func ServeAuthenticatedRequest(
+	ts *MFATestSuite,
+	method, path, token string,
+	buffer bytes.Buffer,
+) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(method, path, &buffer)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -804,7 +968,12 @@ func ServeAuthenticatedRequest(ts *MFATestSuite, method, path, token string, buf
 	return w
 }
 
-func performVerifyFlow(ts *MFATestSuite, challengeID, factorID uuid.UUID, token string, requireStatusOK bool) *httptest.ResponseRecorder {
+func performVerifyFlow(
+	ts *MFATestSuite,
+	challengeID, factorID uuid.UUID,
+	token string,
+	requireStatusOK bool,
+) *httptest.ResponseRecorder {
 	var buffer bytes.Buffer
 
 	factor, err := models.FindFactorByFactorID(ts.API.db, factorID)
@@ -814,7 +983,10 @@ func performVerifyFlow(ts *MFATestSuite, challengeID, factorID uuid.UUID, token 
 	totpSecret := factor.Secret
 
 	if es := crypto.ParseEncryptedString(factor.Secret); es != nil {
-		secret, err := es.Decrypt(factor.ID.String(), ts.API.config.Security.DBEncryption.DecryptionKeys)
+		secret, err := es.Decrypt(
+			factor.ID.String(),
+			ts.API.config.Security.DBEncryption.DecryptionKeys,
+		)
 		require.NoError(ts.T(), err)
 		require.NotNil(ts.T(), secret)
 
@@ -829,7 +1001,13 @@ func performVerifyFlow(ts *MFATestSuite, challengeID, factorID uuid.UUID, token 
 		"code":         code,
 	}))
 
-	y := ServeAuthenticatedRequest(ts, http.MethodPost, fmt.Sprintf("/factors/%s/verify", factorID), token, buffer)
+	y := ServeAuthenticatedRequest(
+		ts,
+		http.MethodPost,
+		fmt.Sprintf("/factors/%s/verify", factorID),
+		token,
+		buffer,
+	)
 
 	if requireStatusOK {
 		require.Equal(ts.T(), http.StatusOK, y.Code)
@@ -837,15 +1015,29 @@ func performVerifyFlow(ts *MFATestSuite, challengeID, factorID uuid.UUID, token 
 	return y
 }
 
-func performChallengeFlow(ts *MFATestSuite, factorID uuid.UUID, token string) *httptest.ResponseRecorder {
+func performChallengeFlow(
+	ts *MFATestSuite,
+	factorID uuid.UUID,
+	token string,
+) *httptest.ResponseRecorder {
 	var buffer bytes.Buffer
-	w := ServeAuthenticatedRequest(ts, http.MethodPost, fmt.Sprintf("http://localhost/factors/%s/challenge", factorID), token, buffer)
+	w := ServeAuthenticatedRequest(
+		ts,
+		http.MethodPost,
+		fmt.Sprintf("http://localhost/factors/%s/challenge", factorID),
+		token,
+		buffer,
+	)
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 	return w
 
 }
 
-func performSMSChallengeFlow(ts *MFATestSuite, factorID uuid.UUID, token, channel string) *httptest.ResponseRecorder {
+func performSMSChallengeFlow(
+	ts *MFATestSuite,
+	factorID uuid.UUID,
+	token, channel string,
+) *httptest.ResponseRecorder {
 	params := ChallengeFactorParams{
 		Channel: channel,
 	}
@@ -854,13 +1046,23 @@ func performSMSChallengeFlow(ts *MFATestSuite, factorID uuid.UUID, token, channe
 		panic(err) // handle the error appropriately in real code
 	}
 
-	w := ServeAuthenticatedRequest(ts, http.MethodPost, fmt.Sprintf("http://localhost/factors/%s/challenge", factorID), token, buffer)
+	w := ServeAuthenticatedRequest(
+		ts,
+		http.MethodPost,
+		fmt.Sprintf("http://localhost/factors/%s/challenge", factorID),
+		token,
+		buffer,
+	)
 	require.Equal(ts.T(), http.StatusOK, w.Code)
 	return w
 
 }
 
-func performEnrollAndVerify(ts *MFATestSuite, token string, requireStatusOK bool) *httptest.ResponseRecorder {
+func performEnrollAndVerify(
+	ts *MFATestSuite,
+	token string,
+	requireStatusOK bool,
+) *httptest.ResponseRecorder {
 	w := performEnrollFlow(ts, token, "", models.TOTP, ts.TestDomain, "", http.StatusOK)
 	enrollResp := EnrollFactorResponse{}
 	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&enrollResp))
@@ -981,7 +1183,10 @@ func (ts *MFATestSuite) TestVerificationHooks() {
 		ts.T().Run(c.desc, func(t *testing.T) {
 			ts.Config.Hook.MFAVerificationAttempt.Enabled = c.enabled
 			ts.Config.Hook.MFAVerificationAttempt.URI = c.uri
-			require.NoError(ts.T(), ts.Config.Hook.MFAVerificationAttempt.PopulateExtensibilityPoint())
+			require.NoError(
+				ts.T(),
+				ts.Config.Hook.MFAVerificationAttempt.PopulateExtensibilityPoint(),
+			)
 
 			err := ts.API.db.RawQuery(c.hookFunctionSQL).Exec()
 			require.NoError(t, err)

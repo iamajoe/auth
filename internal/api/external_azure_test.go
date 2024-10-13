@@ -16,7 +16,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/supabase/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/api/provider"
 )
 
 const (
@@ -26,7 +26,9 @@ const (
 
 func idTokenPrivateKey() *rsa.PrivateKey {
 	// #nosec
-	der, err := base64.StdEncoding.DecodeString("MIIEpAIBAAKCAQEAvklrFDsVgbhs3DOQICMqm4xdFoi/MHj/T6XH8S7wXWd0roqdWVarwCLV4y3DILkLre4PzNK+hEY5NAnoAKrsCMyyCb4Wdl8HCdJk4ojDqAig+DJw67imqZoxJMFJyIhfMJhwVK1V8GRUPATn855rygLo7wThahMJeEHNiJr3TtV6Rf35KSs7DuyoWIUSjISYabQozKqIvpdUpTpSqjlOQvjdAxggRyycBZSgLzjWhsA8metnAMO48bX4bgiHLR6Kzu/dfPyEVPfgeYpA2ebIY6GzIUxVS0yX8+ExA6jeLCkuepjLHuz5XCJtd6zzGDXr1eX7nA6ZIeUNdFbWRDnPawIDAQABAoIBABH4Qvl1HvHSJc2hvPGcAJER71SKc2uzcYDnCfu30BEyDO3Sv0tJiQyq/YHnt26mqviw66MPH9jD/PDyIou1mHa4RfPvlJV3IeYGjWprOfbrYbAuq0VHec24dv2el0YtwreHHcyRVfVOtDm6yODTzCAWqEKyNktbIuDNbgiBgetayaJecDRoFMF9TOCeMCL92iZytzAr7fi+JWtLkRS/GZRIBjbr8LJ/ueYoCRmIx3MIw0WdPp7v2ZfeRTxP7LxJZ+MAsrq2pstmZYP7K0305e0bCJX1HexfXLs2Ul7u8zaxrXL8zw4/9+/GMsAeU3ffCVnGz/RKL5+T6iuz2RotjFECgYEA+Xk7DGwRXfDg9xba1GVFGeiC4nybqZw/RfZKcz/RRJWSHRJV/ps1avtbca3B19rjI6rewZMO1NWNv/tI2BdXP8vAKUnI9OHJZ+J/eZzmqDE6qu0v0ddRFUDzCMWE0j8BjrUdy44n4NQgopcv14u0iyr9tuhGO6YXn2SuuvEkZokCgYEAw0PNnT55kpkEhXSp7An2hdBJEub9ST7hS6Kcd8let62/qUZ/t5jWigSkWC1A2bMtH55+LgudIFjiehwVzRs7jym2j4jkKZGonyAX1l9IWgXwKl7Pn49lEQH5Yk6MhnXdyLGoFTzXiUyk/fKvgXX7jow1bD3j6sAc8P495I7TyVMCgYAHg6VJrH+har37805IE3zPWPeIRuSRaUlmnBKGAigVfsPV6FV6w8YKIOQSOn+aNtecnWr0Pa+2rXAFllYNXDaej06Mb9KDvcFJRcM9MIKqEkGIIHjOQ0QH9drcKsbjZk5vs/jfxrpgxULuYstoHKclgff+aGSlK02O2YOB0f2csQKBgQCEC/MdNiWCpKXxFg7fB3HF1i/Eb56zjKlQu7uyKeQ6tG3bLEisQNg8Z5034Apt7gRC0KyluMbeHB2z1BBOLu9dBill8X3SOqVcTpiwKKlF76QVEx622YLQOJSMDXBscYK0+KchDY74U3N0JEzZcI7YPCrYcxYRJy+rLVNvn8LK7wKBgQDE8THsZ589e10F0zDBvPK56o8PJnPeH71sgdM2Co4oLzBJ6g0rpJOKfcc03fLHsoJVOAya9WZeIy6K8+WVdcPTadR07S4p8/tcK1eguu5qlmCUOzswrTKAaJoIHO7cddQp3nySIqgYtkGdHKuvlQDMQkEKJS0meOm+vdeAG2rkaA==")
+	der, err := base64.StdEncoding.DecodeString(
+		"MIIEpAIBAAKCAQEAvklrFDsVgbhs3DOQICMqm4xdFoi/MHj/T6XH8S7wXWd0roqdWVarwCLV4y3DILkLre4PzNK+hEY5NAnoAKrsCMyyCb4Wdl8HCdJk4ojDqAig+DJw67imqZoxJMFJyIhfMJhwVK1V8GRUPATn855rygLo7wThahMJeEHNiJr3TtV6Rf35KSs7DuyoWIUSjISYabQozKqIvpdUpTpSqjlOQvjdAxggRyycBZSgLzjWhsA8metnAMO48bX4bgiHLR6Kzu/dfPyEVPfgeYpA2ebIY6GzIUxVS0yX8+ExA6jeLCkuepjLHuz5XCJtd6zzGDXr1eX7nA6ZIeUNdFbWRDnPawIDAQABAoIBABH4Qvl1HvHSJc2hvPGcAJER71SKc2uzcYDnCfu30BEyDO3Sv0tJiQyq/YHnt26mqviw66MPH9jD/PDyIou1mHa4RfPvlJV3IeYGjWprOfbrYbAuq0VHec24dv2el0YtwreHHcyRVfVOtDm6yODTzCAWqEKyNktbIuDNbgiBgetayaJecDRoFMF9TOCeMCL92iZytzAr7fi+JWtLkRS/GZRIBjbr8LJ/ueYoCRmIx3MIw0WdPp7v2ZfeRTxP7LxJZ+MAsrq2pstmZYP7K0305e0bCJX1HexfXLs2Ul7u8zaxrXL8zw4/9+/GMsAeU3ffCVnGz/RKL5+T6iuz2RotjFECgYEA+Xk7DGwRXfDg9xba1GVFGeiC4nybqZw/RfZKcz/RRJWSHRJV/ps1avtbca3B19rjI6rewZMO1NWNv/tI2BdXP8vAKUnI9OHJZ+J/eZzmqDE6qu0v0ddRFUDzCMWE0j8BjrUdy44n4NQgopcv14u0iyr9tuhGO6YXn2SuuvEkZokCgYEAw0PNnT55kpkEhXSp7An2hdBJEub9ST7hS6Kcd8let62/qUZ/t5jWigSkWC1A2bMtH55+LgudIFjiehwVzRs7jym2j4jkKZGonyAX1l9IWgXwKl7Pn49lEQH5Yk6MhnXdyLGoFTzXiUyk/fKvgXX7jow1bD3j6sAc8P495I7TyVMCgYAHg6VJrH+har37805IE3zPWPeIRuSRaUlmnBKGAigVfsPV6FV6w8YKIOQSOn+aNtecnWr0Pa+2rXAFllYNXDaej06Mb9KDvcFJRcM9MIKqEkGIIHjOQ0QH9drcKsbjZk5vs/jfxrpgxULuYstoHKclgff+aGSlK02O2YOB0f2csQKBgQCEC/MdNiWCpKXxFg7fB3HF1i/Eb56zjKlQu7uyKeQ6tG3bLEisQNg8Z5034Apt7gRC0KyluMbeHB2z1BBOLu9dBill8X3SOqVcTpiwKKlF76QVEx622YLQOJSMDXBscYK0+KchDY74U3N0JEzZcI7YPCrYcxYRJy+rLVNvn8LK7wKBgQDE8THsZ589e10F0zDBvPK56o8PJnPeH71sgdM2Co4oLzBJ6g0rpJOKfcc03fLHsoJVOAya9WZeIy6K8+WVdcPTadR07S4p8/tcK1eguu5qlmCUOzswrTKAaJoIHO7cddQp3nySIqgYtkGdHKuvlQDMQkEKJS0meOm+vdeAG2rkaA==",
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -117,16 +119,25 @@ func (ts *ExternalTestSuite) TestSignupExternalAzure() {
 
 	claims := ExternalProviderClaims{}
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
-	_, err = p.ParseWithClaims(q.Get("state"), &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(ts.Config.JWT.Secret), nil
-	})
+	_, err = p.ParseWithClaims(
+		q.Get("state"),
+		&claims,
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(ts.Config.JWT.Secret), nil
+		},
+	)
 	ts.Require().NoError(err)
 
 	ts.Equal("azure", claims.Provider)
 	ts.Equal(ts.Config.SiteURL, claims.SiteURL)
 }
 
-func AzureTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, code string, user string) *httptest.Server {
+func AzureTestSignupSetup(
+	ts *ExternalTestSuite,
+	tokenCount *int,
+	code string,
+	user string,
+) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth2/v2.0/token":
@@ -136,7 +147,11 @@ func AzureTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, code string, u
 			ts.Equal(ts.Config.External.Azure.RedirectURI, r.FormValue("redirect_uri"))
 
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"access_token":"azure_token","expires_in":100000,"id_token":%q}`, mintIDToken(user))
+			fmt.Fprintf(
+				w,
+				`{"access_token":"azure_token","expires_in":100000,"id_token":%q}`,
+				mintIDToken(user),
+			)
 		default:
 			w.WriteHeader(500)
 			ts.Fail("unknown azure oauth call %s", r.URL.Path)
@@ -160,7 +175,16 @@ func (ts *ExternalTestSuite) TestSignupExternalAzure_AuthorizationCode() {
 
 	u := performAuthorization(ts, "azure", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, -1, "azure@example.com", "Azure Test", "azuretestid", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		-1,
+		"azure@example.com",
+		"Azure Test",
+		"azuretestid",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupErrorWhenNoUser() {
@@ -174,7 +198,13 @@ func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupErrorWhenNoUser
 
 	u := performAuthorization(ts, "azure", code, "")
 
-	assertAuthorizationFailure(ts, u, "Signups not allowed for this instance", "access_denied", "azure@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Signups not allowed for this instance",
+		"access_denied",
+		"azure@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupErrorWhenNoEmail() {
@@ -188,7 +218,13 @@ func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupErrorWhenNoEmai
 
 	u := performAuthorization(ts, "azure", code, "")
 
-	assertAuthorizationFailure(ts, u, "Error getting user email from external provider", "server_error", "azure@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Error getting user email from external provider",
+		"server_error",
+		"azure@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupSuccessWithPrimaryEmail() {
@@ -205,7 +241,16 @@ func (ts *ExternalTestSuite) TestSignupExternalAzureDisableSignupSuccessWithPrim
 
 	u := performAuthorization(ts, "azure", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, -1, "azure@example.com", "Azure Test", "azuretestid", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		-1,
+		"azure@example.com",
+		"Azure Test",
+		"azuretestid",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalAzureSuccessWhenMatchingToken() {
@@ -221,7 +266,16 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalAzureSuccessWhenMatchingToke
 
 	u := performAuthorization(ts, "azure", code, "invite_token")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, -1, "azure@example.com", "Azure Test", "azuretestid", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		-1,
+		"azure@example.com",
+		"Azure Test",
+		"azuretestid",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalAzureErrorWhenNoMatchingToken() {
@@ -265,5 +319,11 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalAzureErrorWhenEmailDoesntMat
 
 	u := performAuthorization(ts, "azure", code, "invite_token")
 
-	assertAuthorizationFailure(ts, u, "Invited email does not match emails from external provider", "invalid_request", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Invited email does not match emails from external provider",
+		"invalid_request",
+		"",
+	)
 }

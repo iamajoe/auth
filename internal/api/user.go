@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // UserUpdateParams parameters for updating a user
@@ -68,7 +68,10 @@ func (a *API) UserGet(w http.ResponseWriter, r *http.Request) error {
 	aud := a.requestAud(ctx, r)
 	audienceFromClaims, _ := claims.GetAudience()
 	if len(audienceFromClaims) == 0 || aud != audienceFromClaims[0] {
-		return badRequestError(ErrorCodeValidationFailed, "Token audience doesn't match request audience")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Token audience doesn't match request audience",
+		)
 	}
 
 	user := getUser(ctx)
@@ -96,20 +99,32 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 
 	if params.AppData != nil && !isAdmin(user, config) {
 		if !isAdmin(user, config) {
-			return forbiddenError(ErrorCodeNotAdmin, "Updating app_metadata requires admin privileges")
+			return forbiddenError(
+				ErrorCodeNotAdmin,
+				"Updating app_metadata requires admin privileges",
+			)
 		}
 	}
 
 	if user.HasMFAEnabled() && !session.IsAAL2() {
-		if (params.Password != nil && *params.Password != "") || (params.Email != "" && user.GetEmail() != params.Email) || (params.Phone != "" && user.GetPhone() != params.Phone) {
-			return httpError(http.StatusUnauthorized, ErrorCodeInsufficientAAL, "AAL2 session is required to update email or password when MFA is enabled.")
+		if (params.Password != nil && *params.Password != "") ||
+			(params.Email != "" && user.GetEmail() != params.Email) ||
+			(params.Phone != "" && user.GetPhone() != params.Phone) {
+			return httpError(
+				http.StatusUnauthorized,
+				ErrorCodeInsufficientAAL,
+				"AAL2 session is required to update email or password when MFA is enabled.",
+			)
 		}
 	}
 
 	if user.IsAnonymous {
 		if params.Password != nil && *params.Password != "" {
 			if params.Email == "" && params.Phone == "" {
-				return unprocessableEntityError(ErrorCodeValidationFailed, "Updating password of an anonymous user without an email or phone is not allowed")
+				return unprocessableEntityError(
+					ErrorCodeValidationFailed,
+					"Updating password of an anonymous user without an email or phone is not allowed",
+				)
 			}
 		}
 	}
@@ -117,13 +132,19 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 	if user.IsSSOUser {
 		updatingForbiddenFields := false
 
-		updatingForbiddenFields = updatingForbiddenFields || (params.Password != nil && *params.Password != "")
-		updatingForbiddenFields = updatingForbiddenFields || (params.Email != "" && params.Email != user.GetEmail())
-		updatingForbiddenFields = updatingForbiddenFields || (params.Phone != "" && params.Phone != user.GetPhone())
+		updatingForbiddenFields = updatingForbiddenFields ||
+			(params.Password != nil && *params.Password != "")
+		updatingForbiddenFields = updatingForbiddenFields ||
+			(params.Email != "" && params.Email != user.GetEmail())
+		updatingForbiddenFields = updatingForbiddenFields ||
+			(params.Phone != "" && params.Phone != user.GetPhone())
 		updatingForbiddenFields = updatingForbiddenFields || (params.Nonce != "")
 
 		if updatingForbiddenFields {
-			return unprocessableEntityError(ErrorCodeUserSSOManaged, "Updating email, phone, password of a SSO account only possible via SSO")
+			return unprocessableEntityError(
+				ErrorCodeUserSSOManaged,
+				"Updating email, phone, password of a SSO account only possible via SSO",
+			)
 		}
 	}
 
@@ -149,7 +170,10 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 			// we require reauthentication if the user hasn't signed in recently in the current session
 			if session == nil || now.After(session.CreatedAt.Add(24*time.Hour)) {
 				if len(params.Nonce) == 0 {
-					return badRequestError(ErrorCodeReauthenticationNeeded, "Password update requires reauthentication")
+					return badRequestError(
+						ErrorCodeReauthenticationNeeded,
+						"Password update requires reauthentication",
+					)
 				}
 				if err := a.verifyReauthentication(params.Nonce, db, config, user); err != nil {
 					return err
@@ -162,7 +186,14 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 			isSamePassword := false
 
 			if user.HasPassword() {
-				auth, _, err := user.Authenticate(ctx, db, password, config.Security.DBEncryption.DecryptionKeys, false, "")
+				auth, _, err := user.Authenticate(
+					ctx,
+					db,
+					password,
+					config.Security.DBEncryption.DecryptionKeys,
+					false,
+					"",
+				)
 				if err != nil {
 					return err
 				}
@@ -171,7 +202,10 @@ func (a *API) UserUpdate(w http.ResponseWriter, r *http.Request) error {
 			}
 
 			if isSamePassword {
-				return unprocessableEntityError(ErrorCodeSamePassword, "New password should be different from the old password.")
+				return unprocessableEntityError(
+					ErrorCodeSamePassword,
+					"New password should be different from the old password.",
+				)
 			}
 		}
 

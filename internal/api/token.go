@@ -13,11 +13,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/xeipuuv/gojsonschema"
 
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/hooks"
+	"github.com/iamajoe/auth/internal/metering"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // AccessTokenClaims is a struct thats used for JWT claims
@@ -94,7 +94,11 @@ func (a *API) Token(w http.ResponseWriter, r *http.Request) error {
 }
 
 // ResourceOwnerPasswordGrant implements the password grant type flow
-func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (a *API) ResourceOwnerPasswordGrant(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+) error {
 	db := a.db.WithContext(ctx)
 
 	params := &PasswordGrantParams{}
@@ -106,7 +110,10 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 	config := a.config
 
 	if params.Email != "" && params.Phone != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Only an email address or phone number should be provided on login.")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Only an email address or phone number should be provided on login.",
+		)
 	}
 	var user *models.User
 	var grantParams models.GrantParams
@@ -118,7 +125,10 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 	if params.Email != "" {
 		provider = "email"
 		if !config.External.Email.Enabled {
-			return unprocessableEntityError(ErrorCodeEmailProviderDisabled, "Email logins are disabled")
+			return unprocessableEntityError(
+				ErrorCodeEmailProviderDisabled,
+				"Email logins are disabled",
+			)
 		}
 		user, err = models.FindUserByEmailAndAudience(db, params.Email, aud)
 	} else if params.Phone != "" {
@@ -147,7 +157,14 @@ func (a *API) ResourceOwnerPasswordGrant(ctx context.Context, w http.ResponseWri
 		return badRequestError(ErrorCodeUserBanned, "User is banned")
 	}
 
-	isValidPassword, shouldReEncrypt, err := user.Authenticate(ctx, db, params.Password, config.Security.DBEncryption.DecryptionKeys, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID)
+	isValidPassword, shouldReEncrypt, err := user.Authenticate(
+		ctx,
+		db,
+		params.Password,
+		config.Security.DBEncryption.DecryptionKeys,
+		config.Security.DBEncryption.Encrypt,
+		config.Security.DBEncryption.EncryptionKeyID,
+	)
 	if err != nil {
 		return err
 	}
@@ -250,18 +267,27 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	}
 
 	if params.AuthCode == "" || params.CodeVerifier == "" {
-		return badRequestError(ErrorCodeValidationFailed, "invalid request: both auth code and code verifier should be non-empty")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"invalid request: both auth code and code verifier should be non-empty",
+		)
 	}
 
 	flowState, err := models.FindFlowStateByAuthCode(db, params.AuthCode)
 	// Sanity check in case user ID was not set properly
 	if models.IsNotFoundError(err) || flowState.UserID == nil {
-		return notFoundError(ErrorCodeFlowStateNotFound, "invalid flow state, no valid flow state found")
+		return notFoundError(
+			ErrorCodeFlowStateNotFound,
+			"invalid flow state, no valid flow state found",
+		)
 	} else if err != nil {
 		return err
 	}
 	if flowState.IsExpired(a.config.External.FlowStateExpiryDuration) {
-		return unprocessableEntityError(ErrorCodeFlowStateExpired, "invalid flow state, flow state has expired")
+		return unprocessableEntityError(
+			ErrorCodeFlowStateExpired,
+			"invalid flow state, flow state has expired",
+		)
 	}
 
 	user, err := models.FindUserByID(db, *flowState.UserID)
@@ -307,7 +333,13 @@ func (a *API) PKCE(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 	return sendJSON(w, http.StatusOK, token)
 }
 
-func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user *models.User, sessionId *uuid.UUID, authenticationMethod models.AuthenticationMethod) (string, int64, error) {
+func (a *API) generateAccessToken(
+	r *http.Request,
+	tx *storage.Connection,
+	user *models.User,
+	sessionId *uuid.UUID,
+	authenticationMethod models.AuthenticationMethod,
+) (string, int64, error) {
 	config := a.config
 	if sessionId == nil {
 		return "", 0, internalServerError("Session is required to issue access token")
@@ -369,7 +401,13 @@ func (a *API) generateAccessToken(r *http.Request, tx *storage.Connection, user 
 	return signed, expiresAt.Unix(), nil
 }
 
-func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {
+func (a *API) issueRefreshToken(
+	r *http.Request,
+	conn *storage.Connection,
+	user *models.User,
+	authenticationMethod models.AuthenticationMethod,
+	grantParams models.GrantParams,
+) (*AccessTokenResponse, error) {
 	config := a.config
 
 	now := time.Now()
@@ -392,7 +430,13 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 			return terr
 		}
 
-		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, refreshToken.SessionId, authenticationMethod)
+		tokenString, expiresAt, terr = a.generateAccessToken(
+			r,
+			tx,
+			user,
+			refreshToken.SessionId,
+			authenticationMethod,
+		)
 		if terr != nil {
 			// Account for Hook Error
 			httpErr, ok := terr.(*HTTPError)
@@ -417,7 +461,13 @@ func (a *API) issueRefreshToken(r *http.Request, conn *storage.Connection, user 
 	}, nil
 }
 
-func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection, user *models.User, authenticationMethod models.AuthenticationMethod, grantParams models.GrantParams) (*AccessTokenResponse, error) {
+func (a *API) updateMFASessionAndClaims(
+	r *http.Request,
+	tx *storage.Connection,
+	user *models.User,
+	authenticationMethod models.AuthenticationMethod,
+	grantParams models.GrantParams,
+) (*AccessTokenResponse, error) {
 	ctx := r.Context()
 	config := a.config
 	var tokenString string
@@ -426,7 +476,9 @@ func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection,
 	currentClaims := getClaims(ctx)
 	sessionId, err := uuid.FromString(currentClaims.SessionId)
 	if err != nil {
-		return nil, internalServerError("Cannot read SessionId claim as UUID").WithInternalError(err)
+		return nil, internalServerError(
+			"Cannot read SessionId claim as UUID",
+		).WithInternalError(err)
 	}
 
 	err = tx.Transaction(func(tx *storage.Connection) error {
@@ -458,7 +510,13 @@ func (a *API) updateMFASessionAndClaims(r *http.Request, tx *storage.Connection,
 			return err
 		}
 
-		tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, &session.ID, authenticationMethod)
+		tokenString, expiresAt, terr = a.generateAccessToken(
+			r,
+			tx,
+			user,
+			&session.ID,
+			authenticationMethod,
+		)
 		if terr != nil {
 			httpErr, ok := terr.(*HTTPError)
 			if ok {
@@ -498,7 +556,10 @@ func validateTokenClaims(outputClaims map[string]interface{}) error {
 			errorMessages += fmt.Sprintf("- %s\n", desc)
 			fmt.Printf("- %s\n", desc)
 		}
-		return fmt.Errorf("output claims do not conform to the expected schema: \n%s", errorMessages)
+		return fmt.Errorf(
+			"output claims do not conform to the expected schema: \n%s",
+			errorMessages,
+		)
 
 	}
 

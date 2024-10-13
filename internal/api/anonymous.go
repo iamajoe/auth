@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/metering"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 func (a *API) SignupAnonymously(w http.ResponseWriter, r *http.Request) error {
@@ -15,7 +15,10 @@ func (a *API) SignupAnonymously(w http.ResponseWriter, r *http.Request) error {
 	aud := a.requestAud(ctx, r)
 
 	if config.DisableSignup {
-		return unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
+		return unprocessableEntityError(
+			ErrorCodeSignupDisabled,
+			"Signups not allowed for this instance",
+		)
 	}
 
 	params := &SignupParams{}

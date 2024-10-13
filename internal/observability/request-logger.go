@@ -7,9 +7,9 @@ import (
 
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 func AddRequestID(globalConfig *conf.GlobalConfiguration) func(next http.Handler) http.Handler {
@@ -27,7 +27,10 @@ func AddRequestID(globalConfig *conf.GlobalConfiguration) func(next http.Handler
 	}
 }
 
-func NewStructuredLogger(logger *logrus.Logger, config *conf.GlobalConfiguration) func(next http.Handler) http.Handler {
+func NewStructuredLogger(
+	logger *logrus.Logger,
+	config *conf.GlobalConfiguration,
+) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/health" {
@@ -68,7 +71,12 @@ type logEntry struct {
 	Entry *logrus.Entry
 }
 
-func (e *logEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
+func (e *logEntry) Write(
+	status, bytes int,
+	header http.Header,
+	elapsed time.Duration,
+	extra interface{},
+) {
 	fields := logrus.Fields{
 		"status":   status,
 		"duration": elapsed.Nanoseconds(),

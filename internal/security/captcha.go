@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"fmt"
+
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 type GotrueRequest struct {
@@ -45,7 +46,10 @@ func init() {
 	Client = &http.Client{Timeout: defaultTimeout}
 }
 
-func VerifyRequest(r *http.Request, secretKey, captchaProvider string) (VerificationResponse, error) {
+func VerifyRequest(
+	r *http.Request,
+	secretKey, captchaProvider string,
+) (VerificationResponse, error) {
 	bodyBytes, err := utilities.GetBodyBytes(r)
 	if err != nil {
 		return VerificationResponse{}, err
@@ -60,7 +64,9 @@ func VerifyRequest(r *http.Request, secretKey, captchaProvider string) (Verifica
 	captchaResponse := strings.TrimSpace(requestBody.Security.Token)
 
 	if captchaResponse == "" {
-		return VerificationResponse{}, errors.New("no captcha response (captcha_token) found in request")
+		return VerificationResponse{}, errors.New(
+			"no captcha response (captcha_token) found in request",
+		)
 	}
 
 	clientIP := utilities.GetIPAddress(r)
@@ -72,7 +78,9 @@ func VerifyRequest(r *http.Request, secretKey, captchaProvider string) (Verifica
 	return verifyCaptchaCode(captchaResponse, secretKey, clientIP, captchaURL)
 }
 
-func verifyCaptchaCode(token, secretKey, clientIP, captchaURL string) (VerificationResponse, error) {
+func verifyCaptchaCode(
+	token, secretKey, clientIP, captchaURL string,
+) (VerificationResponse, error) {
 	data := url.Values{}
 	data.Set("secret", secretKey)
 	data.Set("response", token)
@@ -81,7 +89,10 @@ func verifyCaptchaCode(token, secretKey, clientIP, captchaURL string) (Verificat
 
 	r, err := http.NewRequest("POST", captchaURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		return VerificationResponse{}, errors.Wrap(err, "couldn't initialize request object for captcha check")
+		return VerificationResponse{}, errors.Wrap(
+			err,
+			"couldn't initialize request object for captcha check",
+		)
 	}
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
@@ -94,7 +105,10 @@ func verifyCaptchaCode(token, secretKey, clientIP, captchaURL string) (Verificat
 	var verificationResponse VerificationResponse
 
 	if err := json.NewDecoder(res.Body).Decode(&verificationResponse); err != nil {
-		return VerificationResponse{}, errors.Wrap(err, "failed to decode captcha response: not JSON")
+		return VerificationResponse{}, errors.Wrap(
+			err,
+			"failed to decode captcha response: not JSON",
+		)
 	}
 
 	return verificationResponse, nil

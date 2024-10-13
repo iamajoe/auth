@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/security"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/security"
 
 	"github.com/didip/tollbooth/v5"
 	"github.com/didip/tollbooth/v5/limiter"
@@ -53,7 +53,10 @@ func (f *FunctionHooks) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var emailRateLimitCounter = observability.ObtainMetricCounter("gotrue_email_rate_limit_counter", "Number of times an email rate limit has been triggered")
+var emailRateLimitCounter = observability.ObtainMetricCounter(
+	"gotrue_email_rate_limit_counter",
+	"Number of times an email rate limit has been triggered",
+)
 
 func (a *API) limitHandler(lmt *limiter.Limiter) middlewareHandler {
 	return func(w http.ResponseWriter, req *http.Request) (context.Context, error) {
@@ -64,7 +67,8 @@ func (a *API) limitHandler(lmt *limiter.Limiter) middlewareHandler {
 
 			if key == "" {
 				log := observability.GetLogEntry(req).Entry
-				log.WithField("header", limitHeader).Warn("request does not have a value for the rate limiting header, rate limiting is not applied")
+				log.WithField("header", limitHeader).
+					Warn("request does not have a value for the rate limiting header, rate limiting is not applied")
 				return c, nil
 			} else {
 				err := tollbooth.LimitByKeys(lmt, []string{key})
@@ -98,7 +102,10 @@ func (a *API) limitEmailOrPhoneSentHandler(limiterOptions *LimiterOptions) middl
 	}
 }
 
-func (a *API) requireAdminCredentials(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) requireAdminCredentials(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	t, err := a.extractBearerToken(req)
 	if err != nil || t == "" {
 		return nil, err
@@ -112,7 +119,10 @@ func (a *API) requireAdminCredentials(w http.ResponseWriter, req *http.Request) 
 	return a.requireAdmin(ctx)
 }
 
-func (a *API) requireEmailProvider(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) requireEmailProvider(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	ctx := req.Context()
 	config := a.config
 
@@ -138,13 +148,23 @@ func (a *API) verifyCaptcha(w http.ResponseWriter, req *http.Request) (context.C
 		return ctx, nil
 	}
 
-	verificationResult, err := security.VerifyRequest(req, strings.TrimSpace(config.Security.Captcha.Secret), config.Security.Captcha.Provider)
+	verificationResult, err := security.VerifyRequest(
+		req,
+		strings.TrimSpace(config.Security.Captcha.Secret),
+		config.Security.Captcha.Provider,
+	)
 	if err != nil {
-		return nil, internalServerError("captcha verification process failed").WithInternalError(err)
+		return nil, internalServerError(
+			"captcha verification process failed",
+		).WithInternalError(err)
 	}
 
 	if !verificationResult.Success {
-		return nil, badRequestError(ErrorCodeCaptchaFailed, "captcha protection: request disallowed (%s)", strings.Join(verificationResult.ErrorCodes, ", "))
+		return nil, badRequestError(
+			ErrorCodeCaptchaFailed,
+			"captcha protection: request disallowed (%s)",
+			strings.Join(verificationResult.ErrorCodes, ", "),
+		)
 	}
 
 	return ctx, nil
@@ -164,11 +184,15 @@ var emailLabelPattern = regexp.MustCompile("[+][^@]+@")
 // we don't need to enforce the check on these endpoints since they don't send emails
 var containsNonEmailSendingPath = regexp.MustCompile(`^/(admin|token|verify)`)
 
-func (a *API) isValidAuthorizedEmail(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) isValidAuthorizedEmail(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	ctx := req.Context()
 
 	// skip checking for authorized email addresses if it's an admin request
-	if containsNonEmailSendingPath.MatchString(req.URL.Path) || req.Method == http.MethodGet || req.Method == http.MethodDelete {
+	if containsNonEmailSendingPath.MatchString(req.URL.Path) || req.Method == http.MethodGet ||
+		req.Method == http.MethodDelete {
 		return ctx, nil
 	}
 
@@ -194,12 +218,19 @@ func (a *API) isValidAuthorizedEmail(w http.ResponseWriter, req *http.Request) (
 			}
 		}
 
-		return ctx, badRequestError(ErrorCodeEmailAddressNotAuthorized, "Email address %q cannot be used as it is not authorized", email)
+		return ctx, badRequestError(
+			ErrorCodeEmailAddressNotAuthorized,
+			"Email address %q cannot be used as it is not authorized",
+			email,
+		)
 	}
 	return ctx, nil
 }
 
-func (a *API) isValidExternalHost(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) isValidExternalHost(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	ctx := req.Context()
 	config := a.config
 
@@ -225,7 +256,10 @@ func (a *API) isValidExternalHost(w http.ResponseWriter, req *http.Request) (con
 	return withExternalHost(ctx, u), nil
 }
 
-func (a *API) requireSAMLEnabled(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) requireSAMLEnabled(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	ctx := req.Context()
 	if !a.config.SAML.Enabled {
 		return nil, notFoundError(ErrorCodeSAMLProviderDisabled, "SAML 2.0 is disabled")
@@ -233,7 +267,10 @@ func (a *API) requireSAMLEnabled(w http.ResponseWriter, req *http.Request) (cont
 	return ctx, nil
 }
 
-func (a *API) requireManualLinkingEnabled(w http.ResponseWriter, req *http.Request) (context.Context, error) {
+func (a *API) requireManualLinkingEnabled(
+	w http.ResponseWriter,
+	req *http.Request,
+) (context.Context, error) {
 	ctx := req.Context()
 	if !a.config.Security.ManualLinkingEnabled {
 		return nil, notFoundError(ErrorCodeManualLinkingDisabled, "Manual linking is disabled")
@@ -259,7 +296,9 @@ func (a *API) databaseCleanup(cleanup *models.Cleanup) func(http.Handler) http.H
 
 			affectedRows, err := cleanup.Clean(db)
 			if err != nil {
-				log.WithError(err).WithField("affected_rows", affectedRows).Warn("database cleanup failed")
+				log.WithError(err).
+					WithField("affected_rows", affectedRows).
+					Warn("database cleanup failed")
 			} else if affectedRows > 0 {
 				log.WithField("affected_rows", affectedRows).Debug("cleaned up expired or stale rows")
 			}

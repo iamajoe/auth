@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/fatih/structs"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // InviteParams are the parameters the Signup endpoint accepts

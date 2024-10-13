@@ -12,13 +12,13 @@ import (
 	"github.com/fatih/structs"
 	"github.com/gofrs/uuid"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 	"golang.org/x/oauth2"
 )
 
@@ -43,7 +43,11 @@ func (a *API) ExternalProviderRedirect(w http.ResponseWriter, r *http.Request) e
 }
 
 // GetExternalProviderRedirectURL returns the URL to start the oauth flow with the corresponding oauth provider
-func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Request, linkingTargetUser *models.User) (string, error) {
+func (a *API) GetExternalProviderRedirectURL(
+	w http.ResponseWriter,
+	r *http.Request,
+	linkingTargetUser *models.User,
+) (string, error) {
 	ctx := r.Context()
 	db := a.db.WithContext(ctx)
 	config := a.config
@@ -56,7 +60,11 @@ func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Requ
 
 	p, err := a.Provider(ctx, providerType, scopes)
 	if err != nil {
-		return "", badRequestError(ErrorCodeValidationFailed, "Unsupported provider: %+v", err).WithInternalError(err)
+		return "", badRequestError(
+			ErrorCodeValidationFailed,
+			"Unsupported provider: %+v",
+			err,
+		).WithInternalError(err)
 	}
 
 	inviteToken := query.Get("invite_token")
@@ -64,7 +72,10 @@ func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Requ
 		_, userErr := models.FindUserByConfirmationToken(db, inviteToken)
 		if userErr != nil {
 			if models.IsNotFoundError(userErr) {
-				return "", notFoundError(ErrorCodeUserNotFound, "User identified by token not found")
+				return "", notFoundError(
+					ErrorCodeUserNotFound,
+					"User identified by token not found",
+				)
 			}
 			return "", internalServerError("Database error finding user").WithInternalError(userErr)
 		}
@@ -80,7 +91,14 @@ func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Requ
 
 	flowStateID := ""
 	if isPKCEFlow(flowType) {
-		flowState, err := generateFlowState(a.db, providerType, models.OAuth, codeChallengeMethod, codeChallenge, nil)
+		flowState, err := generateFlowState(
+			a.db,
+			providerType,
+			models.OAuth,
+			codeChallengeMethod,
+			codeChallenge,
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
@@ -119,7 +137,10 @@ func (a *API) GetExternalProviderRedirectURL(w http.ResponseWriter, r *http.Requ
 	for key := range query {
 		if key == "workos_provider" {
 			// See https://workos.com/docs/reference/sso/authorize/get
-			authUrlParams = append(authUrlParams, oauth2.SetAuthURLParam("provider", query.Get(key)))
+			authUrlParams = append(
+				authUrlParams,
+				oauth2.SetAuthURLParam("provider", query.Get(key)),
+			)
 		} else {
 			authUrlParams = append(authUrlParams, oauth2.SetAuthURLParam(key, query.Get(key)))
 		}
@@ -196,7 +217,10 @@ func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Re
 	if flowStateID := getFlowStateID(ctx); flowStateID != "" {
 		flowState, err = models.FindFlowStateByID(a.db, flowStateID)
 		if models.IsNotFoundError(err) {
-			return unprocessableEntityError(ErrorCodeFlowStateNotFound, "Flow state not found").WithInternalError(err)
+			return unprocessableEntityError(
+				ErrorCodeFlowStateNotFound,
+				"Flow state not found",
+			).WithInternalError(err)
 		} else if err != nil {
 			return internalServerError("Failed to find flow state").WithInternalError(err)
 		}
@@ -268,7 +292,12 @@ func (a *API) internalExternalProviderCallback(w http.ResponseWriter, r *http.Re
 	return nil
 }
 
-func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.Request, userData *provider.UserProvidedData, providerType string) (*models.User, error) {
+func (a *API) createAccountFromExternalIdentity(
+	tx *storage.Connection,
+	r *http.Request,
+	userData *provider.UserProvidedData,
+	providerType string,
+) (*models.User, error) {
 	ctx := r.Context()
 	aud := a.requestAud(ctx, r)
 	config := a.config
@@ -280,7 +309,14 @@ func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.
 		identityData = structs.Map(userData.Metadata)
 	}
 
-	decision, terr := models.DetermineAccountLinking(tx, config, userData.Emails, aud, providerType, userData.Metadata.Subject)
+	decision, terr := models.DetermineAccountLinking(
+		tx,
+		config,
+		userData.Emails,
+		aud,
+		providerType,
+		userData.Metadata.Subject,
+	)
 	if terr != nil {
 		return nil, terr
 	}
@@ -303,7 +339,10 @@ func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.
 
 	case models.CreateAccount:
 		if config.DisableSignup {
-			return nil, unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
+			return nil, unprocessableEntityError(
+				ErrorCodeSignupDisabled,
+				"Signups not allowed for this instance",
+			)
 		}
 
 		params := &SignupParams{
@@ -350,7 +389,10 @@ func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.
 		}
 
 	case models.MultipleAccounts:
-		return nil, internalServerError("Multiple accounts with the same email address in the same linking domain detected: %v", decision.LinkingDomain)
+		return nil, internalServerError(
+			"Multiple accounts with the same email address in the same linking domain detected: %v",
+			decision.LinkingDomain,
+		)
 
 	default:
 		return nil, internalServerError("Unknown automatic linking decision: %v", decision.Decision)
@@ -404,7 +446,12 @@ func (a *API) createAccountFromExternalIdentity(tx *storage.Connection, r *http.
 	return user, nil
 }
 
-func (a *API) processInvite(r *http.Request, tx *storage.Connection, userData *provider.UserProvidedData, inviteToken, providerType string) (*models.User, error) {
+func (a *API) processInvite(
+	r *http.Request,
+	tx *storage.Connection,
+	userData *provider.UserProvidedData,
+	inviteToken, providerType string,
+) (*models.User, error) {
 	user, err := models.FindUserByConfirmationToken(tx, inviteToken)
 	if err != nil {
 		if models.IsNotFoundError(err) {
@@ -424,7 +471,10 @@ func (a *API) processInvite(r *http.Request, tx *storage.Connection, userData *p
 	}
 
 	if emailData == nil {
-		return nil, badRequestError(ErrorCodeValidationFailed, "Invited email does not match emails from external provider").WithInternalMessage("invited=%s external=%s", user.Email, strings.Join(emails, ", "))
+		return nil, badRequestError(
+			ErrorCodeValidationFailed,
+			"Invited email does not match emails from external provider",
+		).WithInternalMessage("invited=%s external=%s", user.Email, strings.Join(emails, ", "))
 	}
 
 	var identityData map[string]interface{}
@@ -499,10 +549,16 @@ func (a *API) loadExternalState(ctx context.Context, r *http.Request) (context.C
 		return nil, fmt.Errorf("missing kid")
 	})
 	if err != nil {
-		return ctx, badRequestError(ErrorCodeBadOAuthState, "OAuth callback with invalid state").WithInternalError(err)
+		return ctx, badRequestError(
+			ErrorCodeBadOAuthState,
+			"OAuth callback with invalid state",
+		).WithInternalError(err)
 	}
 	if claims.Provider == "" {
-		return ctx, badRequestError(ErrorCodeBadOAuthState, "OAuth callback with invalid state (missing provider)")
+		return ctx, badRequestError(
+			ErrorCodeBadOAuthState,
+			"OAuth callback with invalid state (missing provider)",
+		)
 	}
 	if claims.InviteToken != "" {
 		ctx = withInviteToken(ctx, claims.InviteToken)
@@ -516,12 +572,18 @@ func (a *API) loadExternalState(ctx context.Context, r *http.Request) (context.C
 	if claims.LinkingTargetID != "" {
 		linkingTargetUserID, err := uuid.FromString(claims.LinkingTargetID)
 		if err != nil {
-			return nil, badRequestError(ErrorCodeBadOAuthState, "OAuth callback with invalid state (linking_target_id must be UUID)")
+			return nil, badRequestError(
+				ErrorCodeBadOAuthState,
+				"OAuth callback with invalid state (linking_target_id must be UUID)",
+			)
 		}
 		u, err := models.FindUserByID(a.db, linkingTargetUserID)
 		if err != nil {
 			if models.IsNotFoundError(err) {
-				return nil, unprocessableEntityError(ErrorCodeUserNotFound, "Linking target user not found")
+				return nil, unprocessableEntityError(
+					ErrorCodeUserNotFound,
+					"Linking target user not found",
+				)
 			}
 			return nil, internalServerError("Database error loading user").WithInternalError(err)
 		}
@@ -613,7 +675,12 @@ func redirectErrors(handler apiHandler, w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-func getErrorQueryString(err error, errorID string, log logrus.FieldLogger, q url.Values) *url.Values {
+func getErrorQueryString(
+	err error,
+	errorID string,
+	log logrus.FieldLogger,
+	q url.Values,
+) *url.Values {
 	switch e := err.(type) {
 	case *HTTPError:
 		if e.ErrorCode == ErrorCodeSignupDisabled {
@@ -671,7 +738,12 @@ func (a *API) getExternalRedirectURL(r *http.Request) string {
 	return config.SiteURL
 }
 
-func (a *API) createNewIdentity(tx *storage.Connection, user *models.User, providerType string, identityData map[string]interface{}) (*models.Identity, error) {
+func (a *API) createNewIdentity(
+	tx *storage.Connection,
+	user *models.User,
+	providerType string,
+	identityData map[string]interface{},
+) (*models.Identity, error) {
 	identity, err := models.NewIdentity(user, providerType, identityData)
 	if err != nil {
 		return nil, err

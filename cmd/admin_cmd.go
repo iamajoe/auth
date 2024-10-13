@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 var autoconfirm, isAdmin bool
@@ -28,8 +28,10 @@ func adminCmd() *cobra.Command {
 	adminCmd.AddCommand(&adminCreateUserCmd, &adminDeleteUserCmd)
 	adminCmd.PersistentFlags().StringVarP(&audience, "aud", "a", "", "Set the new user's audience")
 
-	adminCreateUserCmd.Flags().BoolVar(&autoconfirm, "confirm", false, "Automatically confirm user without sending an email")
-	adminCreateUserCmd.Flags().BoolVar(&isAdmin, "admin", false, "Create user with admin privileges")
+	adminCreateUserCmd.Flags().
+		BoolVar(&autoconfirm, "confirm", false, "Automatically confirm user without sending an email")
+	adminCreateUserCmd.Flags().
+		BoolVar(&isAdmin, "admin", false, "Create user with admin privileges")
 
 	return adminCmd
 }
@@ -38,7 +40,9 @@ var adminCreateUserCmd = cobra.Command{
 	Use: "createuser",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 2 {
-			logrus.Fatal("Not enough arguments to createuser command. Expected at least email and password values")
+			logrus.Fatal(
+				"Not enough arguments to createuser command. Expected at least email and password values",
+			)
 			return
 		}
 
@@ -50,7 +54,9 @@ var adminDeleteUserCmd = cobra.Command{
 	Use: "deleteuser",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
-			logrus.Fatal("Not enough arguments to deleteuser command. Expected at least ID or email")
+			logrus.Fatal(
+				"Not enough arguments to deleteuser command. Expected at least ID or email",
+			)
 			return
 		}
 

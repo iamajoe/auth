@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -22,7 +22,10 @@ type vercelMarketplaceProvider struct {
 }
 
 // NewVercelMarketplaceProvider creates a VercelMarketplace account provider via OIDC.
-func NewVercelMarketplaceProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewVercelMarketplaceProvider(
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -60,7 +63,10 @@ func (g vercelMarketplaceProvider) GetOAuthToken(code string) (*oauth2.Token, er
 	return g.Exchange(context.Background(), code)
 }
 
-func (g vercelMarketplaceProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g vercelMarketplaceProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	idToken := tok.Extra("id_token")
 	if tok.AccessToken == "" || idToken == nil {
 		return nil, errors.New("vercel_marketplace: no OIDC ID token present in response")

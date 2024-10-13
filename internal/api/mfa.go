@@ -16,16 +16,16 @@ import (
 	wbnprotocol "github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/hooks"
+	"github.com/iamajoe/auth/internal/metering"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 const DefaultQRSize = 3
@@ -104,7 +104,9 @@ func (w *WebAuthnParams) ToConfig() (*webauthn.WebAuthn, error) {
 
 	for _, origin := range origins {
 		parsedURL, err := url.Parse(origin)
-		if err != nil || (parsedURL.Scheme != "https" && !(parsedURL.Scheme == "http" && parsedURL.Hostname() == "localhost")) || parsedURL.Host == "" {
+		if err != nil ||
+			(parsedURL.Scheme != "https" && !(parsedURL.Scheme == "http" && parsedURL.Hostname() == "localhost")) ||
+			parsedURL.Host == "" {
 			invalidOrigins = append(invalidOrigins, origin)
 		} else {
 			validOrigins = append(validOrigins, origin)
@@ -129,7 +131,13 @@ const (
 	QRCodeGenerationErrorMessage = "Error generating QR Code"
 )
 
-func validateFactors(db *storage.Connection, user *models.User, newFactorName string, config *conf.GlobalConfiguration, session *models.Session) error {
+func validateFactors(
+	db *storage.Connection,
+	user *models.User,
+	newFactorName string,
+	config *conf.GlobalConfiguration,
+	session *models.Session,
+) error {
 	if err := models.DeleteExpiredFactors(db, config.MFA.FactorExpiryDuration); err != nil {
 		return err
 	}
@@ -143,7 +151,10 @@ func validateFactors(db *storage.Connection, user *models.User, newFactorName st
 		if factor.FriendlyName == newFactorName {
 			return unprocessableEntityError(
 				ErrorCodeMFAFactorNameConflict,
-				fmt.Sprintf("A factor with the friendly name %q for this user already exists", newFactorName),
+				fmt.Sprintf(
+					"A factor with the friendly name %q for this user already exists",
+					newFactorName,
+				),
 			)
 		}
 		if factor.IsVerified() {
@@ -152,11 +163,17 @@ func validateFactors(db *storage.Connection, user *models.User, newFactorName st
 	}
 
 	if factorCount >= int(config.MFA.MaxEnrolledFactors) {
-		return unprocessableEntityError(ErrorCodeTooManyEnrolledMFAFactors, "Maximum number of verified factors reached, unenroll to continue")
+		return unprocessableEntityError(
+			ErrorCodeTooManyEnrolledMFAFactors,
+			"Maximum number of verified factors reached, unenroll to continue",
+		)
 	}
 
 	if numVerifiedFactors >= config.MFA.MaxVerifiedFactors {
-		return unprocessableEntityError(ErrorCodeTooManyEnrolledMFAFactors, "Maximum number of verified factors reached, unenroll to continue")
+		return unprocessableEntityError(
+			ErrorCodeTooManyEnrolledMFAFactors,
+			"Maximum number of verified factors reached, unenroll to continue",
+		)
 	}
 
 	if numVerifiedFactors > 0 && session != nil && !session.IsAAL2() {
@@ -166,18 +183,28 @@ func validateFactors(db *storage.Connection, user *models.User, newFactorName st
 	return nil
 }
 
-func (a *API) enrollPhoneFactor(w http.ResponseWriter, r *http.Request, params *EnrollFactorParams) error {
+func (a *API) enrollPhoneFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *EnrollFactorParams,
+) error {
 	ctx := r.Context()
 	user := getUser(ctx)
 	session := getSession(ctx)
 	db := a.db.WithContext(ctx)
 	if params.Phone == "" {
-		return badRequestError(ErrorCodeValidationFailed, "Phone number required to enroll Phone factor")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Phone number required to enroll Phone factor",
+		)
 	}
 
 	phone, err := validatePhone(params.Phone)
 	if err != nil {
-		return badRequestError(ErrorCodeValidationFailed, "Invalid phone number format (E.164 required)")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Invalid phone number format (E.164 required)",
+		)
 	}
 
 	var factorsToDelete []models.Factor
@@ -195,7 +222,9 @@ func (a *API) enrollPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 	}
 
 	if err := db.Destroy(&factorsToDelete); err != nil {
-		return internalServerError("Database error deleting unverified phone factors").WithInternalError(err)
+		return internalServerError(
+			"Database error deleting unverified phone factors",
+		).WithInternalError(err)
 	}
 
 	if err := validateFactors(db, user, params.FriendlyName, a.config, session); err != nil {
@@ -226,7 +255,11 @@ func (a *API) enrollPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 	})
 }
 
-func (a *API) enrollWebAuthnFactor(w http.ResponseWriter, r *http.Request, params *EnrollFactorParams) error {
+func (a *API) enrollWebAuthnFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *EnrollFactorParams,
+) error {
 	ctx := r.Context()
 	user := getUser(ctx)
 	session := getSession(ctx)
@@ -259,7 +292,11 @@ func (a *API) enrollWebAuthnFactor(w http.ResponseWriter, r *http.Request, param
 	})
 }
 
-func (a *API) enrollTOTPFactor(w http.ResponseWriter, r *http.Request, params *EnrollFactorParams) error {
+func (a *API) enrollTOTPFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *EnrollFactorParams,
+) error {
 	ctx := r.Context()
 	user := getUser(ctx)
 	db := a.db.WithContext(ctx)
@@ -340,7 +377,9 @@ func (a *API) EnrollFactor(w http.ResponseWriter, r *http.Request) error {
 	config := a.config
 
 	if session == nil || user == nil {
-		return internalServerError("A valid session and a registered user are required to enroll a factor")
+		return internalServerError(
+			"A valid session and a registered user are required to enroll a factor",
+		)
 	}
 	params := &EnrollFactorParams{}
 	if err := retrieveRequestParams(r, params); err != nil {
@@ -350,21 +389,33 @@ func (a *API) EnrollFactor(w http.ResponseWriter, r *http.Request) error {
 	switch params.FactorType {
 	case models.Phone:
 		if !config.MFA.Phone.EnrollEnabled {
-			return unprocessableEntityError(ErrorCodeMFAPhoneEnrollDisabled, "MFA enroll is disabled for Phone")
+			return unprocessableEntityError(
+				ErrorCodeMFAPhoneEnrollDisabled,
+				"MFA enroll is disabled for Phone",
+			)
 		}
 		return a.enrollPhoneFactor(w, r, params)
 	case models.TOTP:
 		if !config.MFA.TOTP.EnrollEnabled {
-			return unprocessableEntityError(ErrorCodeMFATOTPEnrollDisabled, "MFA enroll is disabled for TOTP")
+			return unprocessableEntityError(
+				ErrorCodeMFATOTPEnrollDisabled,
+				"MFA enroll is disabled for TOTP",
+			)
 		}
 		return a.enrollTOTPFactor(w, r, params)
 	case models.WebAuthn:
 		if !config.MFA.WebAuthn.EnrollEnabled {
-			return unprocessableEntityError(ErrorCodeMFAWebAuthnEnrollDisabled, "MFA enroll is disabled for WebAuthn")
+			return unprocessableEntityError(
+				ErrorCodeMFAWebAuthnEnrollDisabled,
+				"MFA enroll is disabled for WebAuthn",
+			)
 		}
 		return a.enrollWebAuthnFactor(w, r, params)
 	default:
-		return badRequestError(ErrorCodeValidationFailed, "factor_type needs to be totp, phone, or webauthn")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"factor_type needs to be totp, phone, or webauthn",
+		)
 	}
 
 }
@@ -390,14 +441,26 @@ func (a *API) challengePhoneFactor(w http.ResponseWriter, r *http.Request) error
 
 	if factor.IsPhoneFactor() && factor.LastChallengedAt != nil {
 		if !factor.LastChallengedAt.Add(config.MFA.Phone.MaxFrequency).Before(time.Now()) {
-			return tooManyRequestsError(ErrorCodeOverSMSSendRateLimit, generateFrequencyLimitErrorMessage(factor.LastChallengedAt, config.MFA.Phone.MaxFrequency))
+			return tooManyRequestsError(
+				ErrorCodeOverSMSSendRateLimit,
+				generateFrequencyLimitErrorMessage(
+					factor.LastChallengedAt,
+					config.MFA.Phone.MaxFrequency,
+				),
+			)
 		}
 	}
 	otp, err := crypto.GenerateOtp(config.MFA.Phone.OtpLength)
 	if err != nil {
 		panic(err)
 	}
-	challenge, err := factor.CreatePhoneChallenge(ipAddress, otp, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey)
+	challenge, err := factor.CreatePhoneChallenge(
+		ipAddress,
+		otp,
+		config.Security.DBEncryption.Encrypt,
+		config.Security.DBEncryption.EncryptionKeyID,
+		config.Security.DBEncryption.EncryptionKey,
+	)
 	if err != nil {
 		return internalServerError("error creating SMS Challenge")
 	}
@@ -511,7 +574,9 @@ func (a *API) challengeWebAuthnFactor(w http.ResponseWriter, r *http.Request) er
 	if factor.IsUnverified() {
 		options, session, err := webAuthn.BeginRegistration(user)
 		if err != nil {
-			return internalServerError("Failed to generate WebAuthn registration data").WithInternalError(err)
+			return internalServerError(
+				"Failed to generate WebAuthn registration data",
+			).WithInternalError(err)
 		}
 		ws = &models.WebAuthnSessionData{
 			SessionData: session,
@@ -550,27 +615,44 @@ func (a *API) challengeWebAuthnFactor(w http.ResponseWriter, r *http.Request) er
 
 }
 
-func (a *API) validateChallenge(r *http.Request, db *storage.Connection, factor *models.Factor, challengeID uuid.UUID) (*models.Challenge, error) {
+func (a *API) validateChallenge(
+	r *http.Request,
+	db *storage.Connection,
+	factor *models.Factor,
+	challengeID uuid.UUID,
+) (*models.Challenge, error) {
 	config := a.config
 	currentIP := utilities.GetIPAddress(r)
 
 	challenge, err := factor.FindChallengeByID(db, challengeID)
 	if err != nil {
 		if models.IsNotFoundError(err) {
-			return nil, unprocessableEntityError(ErrorCodeMFAFactorNotFound, "MFA factor with the provided challenge ID not found")
+			return nil, unprocessableEntityError(
+				ErrorCodeMFAFactorNotFound,
+				"MFA factor with the provided challenge ID not found",
+			)
 		}
 		return nil, internalServerError("Database error finding Challenge").WithInternalError(err)
 	}
 
 	if challenge.VerifiedAt != nil || challenge.IPAddress != currentIP {
-		return nil, unprocessableEntityError(ErrorCodeMFAIPAddressMismatch, "Challenge and verify IP addresses mismatch. Try enrollment again.")
+		return nil, unprocessableEntityError(
+			ErrorCodeMFAIPAddressMismatch,
+			"Challenge and verify IP addresses mismatch. Try enrollment again.",
+		)
 	}
 
 	if challenge.HasExpired(config.MFA.ChallengeExpiryDuration) {
 		if err := db.Destroy(challenge); err != nil {
-			return nil, internalServerError("Database error deleting challenge").WithInternalError(err)
+			return nil, internalServerError(
+				"Database error deleting challenge",
+			).WithInternalError(err)
 		}
-		return nil, unprocessableEntityError(ErrorCodeMFAChallengeExpired, "MFA challenge %v has expired, verify against another challenge or create a new challenge.", challenge.ID)
+		return nil, unprocessableEntityError(
+			ErrorCodeMFAChallengeExpired,
+			"MFA challenge %v has expired, verify against another challenge or create a new challenge.",
+			challenge.ID,
+		)
 	}
 
 	return challenge, nil
@@ -584,27 +666,43 @@ func (a *API) ChallengeFactor(w http.ResponseWriter, r *http.Request) error {
 	switch factor.FactorType {
 	case models.Phone:
 		if !config.MFA.Phone.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFAPhoneVerifyDisabled, "MFA verification is disabled for Phone")
+			return unprocessableEntityError(
+				ErrorCodeMFAPhoneVerifyDisabled,
+				"MFA verification is disabled for Phone",
+			)
 		}
 		return a.challengePhoneFactor(w, r)
 
 	case models.TOTP:
 		if !config.MFA.TOTP.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFATOTPVerifyDisabled, "MFA verification is disabled for TOTP")
+			return unprocessableEntityError(
+				ErrorCodeMFATOTPVerifyDisabled,
+				"MFA verification is disabled for TOTP",
+			)
 		}
 		return a.challengeTOTPFactor(w, r)
 	case models.WebAuthn:
 		if !config.MFA.WebAuthn.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFAWebAuthnVerifyDisabled, "MFA verification is disabled for WebAuthn")
+			return unprocessableEntityError(
+				ErrorCodeMFAWebAuthnVerifyDisabled,
+				"MFA verification is disabled for WebAuthn",
+			)
 		}
 		return a.challengeWebAuthnFactor(w, r)
 	default:
-		return badRequestError(ErrorCodeValidationFailed, "factor_type needs to be totp, phone, or webauthn")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"factor_type needs to be totp, phone, or webauthn",
+		)
 	}
 
 }
 
-func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *VerifyFactorParams) error {
+func (a *API) verifyTOTPFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *VerifyFactorParams,
+) error {
 	var err error
 	ctx := r.Context()
 	user := getUser(ctx)
@@ -617,9 +715,15 @@ func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *V
 		return err
 	}
 
-	secret, shouldReEncrypt, err := factor.GetSecret(config.Security.DBEncryption.DecryptionKeys, config.Security.DBEncryption.Encrypt, config.Security.DBEncryption.EncryptionKeyID)
+	secret, shouldReEncrypt, err := factor.GetSecret(
+		config.Security.DBEncryption.DecryptionKeys,
+		config.Security.DBEncryption.Encrypt,
+		config.Security.DBEncryption.EncryptionKeyID,
+	)
 	if err != nil {
-		return internalServerError("Database error verifying MFA TOTP secret").WithInternalError(err)
+		return internalServerError(
+			"Database error verifying MFA TOTP secret",
+		).WithInternalError(err)
 	}
 
 	valid, verr := totp.ValidateCustom(params.Code, secret, time.Now().UTC(), totp.ValidateOpts{
@@ -664,7 +768,10 @@ func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *V
 				return err
 			}
 		}
-		return unprocessableEntityError(ErrorCodeMFAVerificationFailed, "Invalid TOTP code entered").WithInternalError(verr)
+		return unprocessableEntityError(
+			ErrorCodeMFAVerificationFailed,
+			"Invalid TOTP code entered",
+		).WithInternalError(verr)
 	}
 
 	var token *AccessTokenResponse
@@ -687,7 +794,12 @@ func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *V
 			}
 		}
 		if shouldReEncrypt && config.Security.DBEncryption.Encrypt {
-			es, terr := crypto.NewEncryptedString(factor.ID.String(), []byte(secret), config.Security.DBEncryption.EncryptionKeyID, config.Security.DBEncryption.EncryptionKey)
+			es, terr := crypto.NewEncryptedString(
+				factor.ID.String(),
+				[]byte(secret),
+				config.Security.DBEncryption.EncryptionKeyID,
+				config.Security.DBEncryption.EncryptionKey,
+			)
 			if terr != nil {
 				return terr
 			}
@@ -702,9 +814,15 @@ func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *V
 			return terr
 		}
 
-		token, terr = a.updateMFASessionAndClaims(r, tx, user, models.TOTPSignIn, models.GrantParams{
-			FactorID: &factor.ID,
-		})
+		token, terr = a.updateMFASessionAndClaims(
+			r,
+			tx,
+			user,
+			models.TOTPSignIn,
+			models.GrantParams{
+				FactorID: &factor.ID,
+			},
+		)
 		if terr != nil {
 			return terr
 		}
@@ -725,7 +843,11 @@ func (a *API) verifyTOTPFactor(w http.ResponseWriter, r *http.Request, params *V
 
 }
 
-func (a *API) verifyPhoneFactor(w http.ResponseWriter, r *http.Request, params *VerifyFactorParams) error {
+func (a *API) verifyPhoneFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *VerifyFactorParams,
+) error {
 	ctx := r.Context()
 	config := a.config
 	user := getUser(ctx)
@@ -739,14 +861,21 @@ func (a *API) verifyPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 	}
 
 	if challenge.VerifiedAt != nil || challenge.IPAddress != currentIP {
-		return unprocessableEntityError(ErrorCodeMFAIPAddressMismatch, "Challenge and verify IP addresses mismatch")
+		return unprocessableEntityError(
+			ErrorCodeMFAIPAddressMismatch,
+			"Challenge and verify IP addresses mismatch",
+		)
 	}
 
 	if challenge.HasExpired(config.MFA.ChallengeExpiryDuration) {
 		if err := db.Destroy(challenge); err != nil {
 			return internalServerError("Database error deleting challenge").WithInternalError(err)
 		}
-		return unprocessableEntityError(ErrorCodeMFAChallengeExpired, "MFA challenge %v has expired, verify against another challenge or create a new challenge.", challenge.ID)
+		return unprocessableEntityError(
+			ErrorCodeMFAChallengeExpired,
+			"MFA challenge %v has expired, verify against another challenge or create a new challenge.",
+			challenge.ID,
+		)
 	}
 	var valid bool
 	var otpCode string
@@ -757,7 +886,10 @@ func (a *API) verifyPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 			return internalServerError("Failed to get SMS provider").WithInternalError(err)
 		}
 		if err := smsProvider.VerifyOTP(factor.Phone.String(), params.Code); err != nil {
-			return forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalError(err)
+			return forbiddenError(
+				ErrorCodeOTPExpired,
+				"Token has expired or is invalid",
+			).WithInternalError(err)
 		}
 		valid = true
 	} else {
@@ -803,7 +935,10 @@ func (a *API) verifyPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 				return err
 			}
 		}
-		return unprocessableEntityError(ErrorCodeMFAVerificationFailed, "Invalid MFA Phone code entered")
+		return unprocessableEntityError(
+			ErrorCodeMFAVerificationFailed,
+			"Invalid MFA Phone code entered",
+		)
 	}
 
 	var token *AccessTokenResponse
@@ -852,7 +987,11 @@ func (a *API) verifyPhoneFactor(w http.ResponseWriter, r *http.Request, params *
 	return sendJSON(w, http.StatusOK, token)
 }
 
-func (a *API) verifyWebAuthnFactor(w http.ResponseWriter, r *http.Request, params *VerifyFactorParams) error {
+func (a *API) verifyWebAuthnFactor(
+	w http.ResponseWriter,
+	r *http.Request,
+	params *VerifyFactorParams,
+) error {
 	ctx := r.Context()
 	user := getUser(ctx)
 	factor := getFactor(ctx)
@@ -887,9 +1026,14 @@ func (a *API) verifyWebAuthnFactor(w http.ResponseWriter, r *http.Request, param
 	}
 
 	if factor.IsUnverified() {
-		parsedResponse, err := wbnprotocol.ParseCredentialCreationResponseBody(bytes.NewReader(params.WebAuthn.CreationResponse))
+		parsedResponse, err := wbnprotocol.ParseCredentialCreationResponseBody(
+			bytes.NewReader(params.WebAuthn.CreationResponse),
+		)
 		if err != nil {
-			return badRequestError(ErrorCodeValidationFailed, "Invalid credential_creation_response")
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				"Invalid credential_creation_response",
+			)
 		}
 		credential, err = webAuthn.CreateCredential(user, webAuthnSession, parsedResponse)
 		if err != nil {
@@ -929,9 +1073,15 @@ func (a *API) verifyWebAuthnFactor(w http.ResponseWriter, r *http.Request, param
 		if terr != nil {
 			return terr
 		}
-		token, terr = a.updateMFASessionAndClaims(r, tx, user, models.MFAWebAuthn, models.GrantParams{
-			FactorID: &factor.ID,
-		})
+		token, terr = a.updateMFASessionAndClaims(
+			r,
+			tx,
+			user,
+			models.MFAWebAuthn,
+			models.GrantParams{
+				FactorID: &factor.ID,
+			},
+		)
 		if terr != nil {
 			return terr
 		}
@@ -939,7 +1089,9 @@ func (a *API) verifyWebAuthnFactor(w http.ResponseWriter, r *http.Request, param
 			return internalServerError("Failed to update session").WithInternalError(terr)
 		}
 		if terr = models.DeleteUnverifiedFactors(tx, user, models.WebAuthn); terr != nil {
-			return internalServerError("Failed to remove unverified MFA WebAuthn factors").WithInternalError(terr)
+			return internalServerError(
+				"Failed to remove unverified MFA WebAuthn factors",
+			).WithInternalError(terr)
 		}
 		return nil
 	})
@@ -967,22 +1119,34 @@ func (a *API) VerifyFactor(w http.ResponseWriter, r *http.Request) error {
 	switch factor.FactorType {
 	case models.Phone:
 		if !config.MFA.Phone.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFAPhoneVerifyDisabled, "MFA verification is disabled for Phone")
+			return unprocessableEntityError(
+				ErrorCodeMFAPhoneVerifyDisabled,
+				"MFA verification is disabled for Phone",
+			)
 		}
 
 		return a.verifyPhoneFactor(w, r, params)
 	case models.TOTP:
 		if !config.MFA.TOTP.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFATOTPVerifyDisabled, "MFA verification is disabled for TOTP")
+			return unprocessableEntityError(
+				ErrorCodeMFATOTPVerifyDisabled,
+				"MFA verification is disabled for TOTP",
+			)
 		}
 		return a.verifyTOTPFactor(w, r, params)
 	case models.WebAuthn:
 		if !config.MFA.WebAuthn.VerifyEnabled {
-			return unprocessableEntityError(ErrorCodeMFAWebAuthnEnrollDisabled, "MFA verification is disabled for WebAuthn")
+			return unprocessableEntityError(
+				ErrorCodeMFAWebAuthnEnrollDisabled,
+				"MFA verification is disabled for WebAuthn",
+			)
 		}
 		return a.verifyWebAuthnFactor(w, r, params)
 	default:
-		return badRequestError(ErrorCodeValidationFailed, "factor_type needs to be totp, phone, or webauthn")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"factor_type needs to be totp, phone, or webauthn",
+		)
 	}
 
 }
@@ -1000,7 +1164,10 @@ func (a *API) UnenrollFactor(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if factor.IsVerified() && !session.IsAAL2() {
-		return unprocessableEntityError(ErrorCodeInsufficientAAL, "AAL2 required to unenroll verified factor")
+		return unprocessableEntityError(
+			ErrorCodeInsufficientAAL,
+			"AAL2 required to unenroll verified factor",
+		)
 	}
 
 	err = db.Transaction(func(tx *storage.Connection) error {

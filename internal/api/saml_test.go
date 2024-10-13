@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 
 	"github.com/crewjam/saml"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 func TestSAMLMetadataWithAPI(t *tst.T) {
@@ -45,10 +45,22 @@ func TestSAMLMetadataWithAPI(t *tst.T) {
 	require.True(t, *(metadata.SPSSODescriptors[0].WantAssertionsSigned))
 
 	require.Equal(t, len(metadata.SPSSODescriptors[0].AssertionConsumerServices), 2)
-	require.Equal(t, metadata.SPSSODescriptors[0].AssertionConsumerServices[0].Location, "https://projectref.supabase.co/auth/v1/sso/saml/acs")
-	require.Equal(t, metadata.SPSSODescriptors[0].AssertionConsumerServices[1].Location, "https://projectref.supabase.co/auth/v1/sso/saml/acs")
+	require.Equal(
+		t,
+		metadata.SPSSODescriptors[0].AssertionConsumerServices[0].Location,
+		"https://projectref.supabase.co/auth/v1/sso/saml/acs",
+	)
+	require.Equal(
+		t,
+		metadata.SPSSODescriptors[0].AssertionConsumerServices[1].Location,
+		"https://projectref.supabase.co/auth/v1/sso/saml/acs",
+	)
 	require.Equal(t, len(metadata.SPSSODescriptors[0].SingleLogoutServices), 1)
-	require.Equal(t, metadata.SPSSODescriptors[0].SingleLogoutServices[0].Location, "https://projectref.supabase.co/auth/v1/sso/saml/slo")
+	require.Equal(
+		t,
+		metadata.SPSSODescriptors[0].SingleLogoutServices[0].Location,
+		"https://projectref.supabase.co/auth/v1/sso/saml/slo",
+	)
 
 	require.Equal(t, len(metadata.SPSSODescriptors[0].KeyDescriptors), 1)
 	require.Equal(t, metadata.SPSSODescriptors[0].KeyDescriptors[0].Use, "signing")

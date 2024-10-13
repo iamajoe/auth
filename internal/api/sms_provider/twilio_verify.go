@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 const (

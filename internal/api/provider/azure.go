@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -38,8 +38,13 @@ type azureProvider struct {
 	ExpectedIssuer string
 }
 
-var azureIssuerRegexp = regexp.MustCompile("^https://login[.]microsoftonline[.]com/([^/]+)/v2[.]0/?$")
-var azureCIAMIssuerRegexp = regexp.MustCompile("^https://[a-z0-9-]+[.]ciamlogin[.]com/([^/]+)/v2[.]0/?$")
+var azureIssuerRegexp = regexp.MustCompile(
+	"^https://login[.]microsoftonline[.]com/([^/]+)/v2[.]0/?$",
+)
+
+var azureCIAMIssuerRegexp = regexp.MustCompile(
+	"^https://[a-z0-9-]+[.]ciamlogin[.]com/([^/]+)/v2[.]0/?$",
+)
 
 func IsAzureIssuer(issuer string) bool {
 	return azureIssuerRegexp.MatchString(issuer)
@@ -67,7 +72,9 @@ func NewAzureProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuth
 	if ext.URL != "" {
 		expectedIssuer = authHost + "/v2.0"
 
-		if !IsAzureIssuer(expectedIssuer) || !IsAzureCIAMIssuer(expectedIssuer) || expectedIssuer == IssuerAzureCommon || expectedIssuer == IssuerAzureOrganizations {
+		if !IsAzureIssuer(expectedIssuer) || !IsAzureCIAMIssuer(expectedIssuer) ||
+			expectedIssuer == IssuerAzureCommon ||
+			expectedIssuer == IssuerAzureOrganizations {
 			// in tests, the URL is a local server which should not
 			// be the expected issuer
 			// also, IssuerAzure (common) never actually issues any
@@ -117,7 +124,10 @@ func DetectAzureIDTokenIssuer(ctx context.Context, idToken string) (string, erro
 	return payload.Issuer, nil
 }
 
-func (g azureProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g azureProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	idToken := tok.Extra("id_token")
 
 	if idToken != nil {
@@ -129,7 +139,8 @@ func (g azureProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*Use
 		// Allow basic Azure issuers, except when the expected issuer
 		// is configured to be the Azure CIAM issuer, allow CIAM
 		// issuers to pass.
-		if !IsAzureIssuer(issuer) && (IsAzureCIAMIssuer(g.ExpectedIssuer) && !IsAzureCIAMIssuer(issuer)) {
+		if !IsAzureIssuer(issuer) &&
+			(IsAzureCIAMIssuer(g.ExpectedIssuer) && !IsAzureCIAMIssuer(issuer)) {
 			return nil, fmt.Errorf("azure: ID token issuer not valid %q", issuer)
 		}
 
@@ -138,7 +149,11 @@ func (g azureProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*Use
 			// setup GoTrue to use the tenant-specific
 			// authorization endpoint, which in-turn means that
 			// only those tenant's ID tokens will be accepted.
-			return nil, fmt.Errorf("azure: ID token issuer %q does not match expected issuer %q", issuer, g.ExpectedIssuer)
+			return nil, fmt.Errorf(
+				"azure: ID token issuer %q does not match expected issuer %q",
+				issuer,
+				g.ExpectedIssuer,
+			)
 		}
 
 		provider, err := oidc.NewProvider(ctx, issuer)

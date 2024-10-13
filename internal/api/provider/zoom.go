@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -55,7 +55,10 @@ func (g zoomProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return g.Exchange(context.Background(), code)
 }
 
-func (g zoomProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g zoomProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u zoomUser
 	if err := makeRequest(ctx, tok, g.Config, g.APIPath+"/users/me", &u); err != nil {
 		return nil, err

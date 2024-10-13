@@ -7,9 +7,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/iamajoe/auth/cmd"
+	"github.com/iamajoe/auth/internal/observability"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/cmd"
-	"github.com/supabase/auth/internal/observability"
 )
 
 func init() {
@@ -17,7 +17,12 @@ func init() {
 }
 
 func main() {
-	execCtx, execCancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT)
+	execCtx, execCancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGTERM,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+	)
 	defer execCancel()
 
 	go func() {

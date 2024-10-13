@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage/test"
 )
 
 type FactorTestSuite struct {

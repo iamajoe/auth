@@ -3,9 +3,9 @@ package models
 import (
 	"strings"
 
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // GetAccountLinkingDomain returns a string that describes the account linking
@@ -50,7 +50,12 @@ type AccountLinkingResult struct {
 // - It's not possible to decide due to data inconsistency (MultipleAccounts) and the caller should decide
 //
 // Errors signal failure in processing only, like database access errors.
-func DetermineAccountLinking(tx *storage.Connection, config *conf.GlobalConfiguration, emails []provider.Email, aud, providerName, sub string) (AccountLinkingResult, error) {
+func DetermineAccountLinking(
+	tx *storage.Connection,
+	config *conf.GlobalConfiguration,
+	emails []provider.Email,
+	aud, providerName, sub string,
+) (AccountLinkingResult, error) {
 	var verifiedEmails []string
 	var candidateEmail provider.Email
 	for _, email := range emails {

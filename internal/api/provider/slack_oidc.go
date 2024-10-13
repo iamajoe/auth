@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -25,7 +25,10 @@ type slackOIDCUser struct {
 }
 
 // NewSlackOIDCProvider creates a Slack account provider with Sign in with Slack.
-func NewSlackOIDCProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewSlackOIDCProvider(
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -64,7 +67,10 @@ func (g slackOIDCProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return g.Exchange(context.Background(), code)
 }
 
-func (g slackOIDCProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g slackOIDCProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u slackOIDCUser
 	if err := makeRequest(ctx, tok, g.Config, g.APIPath+"/openid.connect.userInfo", &u); err != nil {
 		return nil, err

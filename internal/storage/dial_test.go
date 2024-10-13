@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 type TestUser struct {
@@ -39,12 +39,20 @@ func TestTransaction(t *testing.T) {
 
 	defer func() {
 		// clean up the test table created
-		require.NoError(t, conn.RawQuery("drop table if exists test").Exec(), "Error removing table")
+		require.NoError(
+			t,
+			conn.RawQuery("drop table if exists test").Exec(),
+			"Error removing table",
+		)
 	}()
 
 	commitWithError := NewCommitWithError(errors.New("commit with error"))
 	err = conn.Transaction(func(tx *Connection) error {
-		require.NoError(t, tx.RawQuery("create table if not exists test()").Exec(), "Error saving creating test table")
+		require.NoError(
+			t,
+			tx.RawQuery("create table if not exists test()").Exec(),
+			"Error saving creating test table",
+		)
 		return commitWithError
 	})
 	require.Error(t, err)

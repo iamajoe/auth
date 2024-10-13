@@ -5,21 +5,22 @@ import (
 	"fmt"
 
 	"encoding/json"
+	"time"
+
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/storage"
-	"time"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 type Challenge struct {
-	ID                  uuid.UUID            `json:"challenge_id" db:"id"`
-	FactorID            uuid.UUID            `json:"factor_id" db:"factor_id"`
-	CreatedAt           time.Time            `json:"created_at" db:"created_at"`
-	VerifiedAt          *time.Time           `json:"verified_at,omitempty" db:"verified_at"`
-	IPAddress           string               `json:"ip_address" db:"ip_address"`
-	Factor              *Factor              `json:"factor,omitempty" belongs_to:"factor"`
-	OtpCode             string               `json:"otp_code,omitempty" db:"otp_code"`
+	ID                  uuid.UUID            `json:"challenge_id"                     db:"id"`
+	FactorID            uuid.UUID            `json:"factor_id"                        db:"factor_id"`
+	CreatedAt           time.Time            `json:"created_at"                       db:"created_at"`
+	VerifiedAt          *time.Time           `json:"verified_at,omitempty"            db:"verified_at"`
+	IPAddress           string               `json:"ip_address"                       db:"ip_address"`
+	Factor              *Factor              `json:"factor,omitempty"                                             belongs_to:"factor"`
+	OtpCode             string               `json:"otp_code,omitempty"               db:"otp_code"`
 	WebAuthnSessionData *WebAuthnSessionData `json:"web_authn_session_data,omitempty" db:"web_authn_session_data"`
 }
 
@@ -95,10 +96,19 @@ func (c *Challenge) GetExpiryTime(expiryDuration float64) time.Time {
 	return c.CreatedAt.Add(time.Second * time.Duration(expiryDuration))
 }
 
-func (c *Challenge) SetOtpCode(otpCode string, encrypt bool, encryptionKeyID, encryptionKey string) error {
+func (c *Challenge) SetOtpCode(
+	otpCode string,
+	encrypt bool,
+	encryptionKeyID, encryptionKey string,
+) error {
 	c.OtpCode = otpCode
 	if encrypt {
-		es, err := crypto.NewEncryptedString(c.ID.String(), []byte(otpCode), encryptionKeyID, encryptionKey)
+		es, err := crypto.NewEncryptedString(
+			c.ID.String(),
+			[]byte(otpCode),
+			encryptionKeyID,
+			encryptionKey,
+		)
 		if err != nil {
 			return err
 		}
@@ -109,7 +119,11 @@ func (c *Challenge) SetOtpCode(otpCode string, encrypt bool, encryptionKeyID, en
 
 }
 
-func (c *Challenge) GetOtpCode(decryptionKeys map[string]string, encrypt bool, encryptionKeyID string) (string, bool, error) {
+func (c *Challenge) GetOtpCode(
+	decryptionKeys map[string]string,
+	encrypt bool,
+	encryptionKeyID string,
+) (string, bool, error) {
 	if es := crypto.ParseEncryptedString(c.OtpCode); es != nil {
 		bytes, err := es.Decrypt(c.ID.String(), decryptionKeys)
 		if err != nil {

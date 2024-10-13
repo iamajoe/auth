@@ -5,8 +5,8 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 type SingleSignOnParams struct {
@@ -27,7 +27,10 @@ func (p *SingleSignOnParams) validate() (bool, error) {
 	hasDomain := p.Domain != ""
 
 	if hasProviderID && hasDomain {
-		return hasProviderID, badRequestError(ErrorCodeValidationFailed, "Only one of provider_id or domain supported")
+		return hasProviderID, badRequestError(
+			ErrorCodeValidationFailed,
+			"Only one of provider_id or domain supported",
+		)
 	} else if !hasProviderID && !hasDomain {
 		return hasProviderID, badRequestError(ErrorCodeValidationFailed, "A provider_id or domain needs to be provided")
 	}
@@ -61,7 +64,14 @@ func (a *API) SingleSignOn(w http.ResponseWriter, r *http.Request) error {
 	var flowStateID *uuid.UUID
 	flowStateID = nil
 	if isPKCEFlow(flowType) {
-		flowState, err := generateFlowState(db, models.SSOSAML.String(), models.SSOSAML, codeChallengeMethod, codeChallenge, nil)
+		flowState, err := generateFlowState(
+			db,
+			models.SSOSAML.String(),
+			models.SSOSAML,
+			codeChallengeMethod,
+			codeChallenge,
+			nil,
+		)
 		if err != nil {
 			return err
 		}
@@ -88,7 +98,9 @@ func (a *API) SingleSignOn(w http.ResponseWriter, r *http.Request) error {
 
 	entityDescriptor, err := ssoProvider.SAMLProvider.EntityDescriptor()
 	if err != nil {
-		return internalServerError("Error parsing SAML Metadata for SAML provider").WithInternalError(err)
+		return internalServerError(
+			"Error parsing SAML Metadata for SAML provider",
+		).WithInternalError(err)
 	}
 
 	serviceProvider := a.getSAMLServiceProvider(entityDescriptor, false /* <- idpInitiated */)
@@ -99,7 +111,9 @@ func (a *API) SingleSignOn(w http.ResponseWriter, r *http.Request) error {
 		saml.HTTPPostBinding,
 	)
 	if err != nil {
-		return internalServerError("Error creating SAML Authentication Request").WithInternalError(err)
+		return internalServerError(
+			"Error creating SAML Authentication Request",
+		).WithInternalError(err)
 	}
 
 	// Some IdPs do not support the use of the `persistent` NameID format,
@@ -127,7 +141,9 @@ func (a *API) SingleSignOn(w http.ResponseWriter, r *http.Request) error {
 
 	ssoRedirectURL, err := authnRequest.Redirect(relayState.ID.String(), serviceProvider)
 	if err != nil {
-		return internalServerError("Error creating SAML authentication request redirect URL").WithInternalError(err)
+		return internalServerError(
+			"Error creating SAML authentication request redirect URL",
+		).WithInternalError(err)
 	}
 
 	skipHTTPRedirect := false

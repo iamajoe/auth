@@ -3,11 +3,11 @@ package api
 import (
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage/test"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
 )
 
 const (
@@ -26,7 +26,9 @@ func setupAPIForTest() (*API, *conf.GlobalConfiguration, error) {
 	return setupAPIForTestWithCallback(nil)
 }
 
-func setupAPIForTestWithCallback(cb func(*conf.GlobalConfiguration, *storage.Connection)) (*API, *conf.GlobalConfiguration, error) {
+func setupAPIForTestWithCallback(
+	cb func(*conf.GlobalConfiguration, *storage.Connection),
+) (*API, *conf.GlobalConfiguration, error) {
 	config, err := conf.LoadGlobal(apiTestConfig)
 	if err != nil {
 		return nil, nil, err

@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -38,14 +38,20 @@ type facebookUser struct {
 }
 
 // NewFacebookProvider creates a Facebook account provider.
-func NewFacebookProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewFacebookProvider(
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
 
 	authHost := chooseHost(ext.URL, defaultFacebookAuthBase)
 	tokenHost := chooseHost(ext.URL, defaultFacebookTokenBase)
-	profileURL := chooseHost(ext.URL, defaultFacebookAPIBase) + "/me?fields=email,first_name,last_name,name,picture"
+	profileURL := chooseHost(
+		ext.URL,
+		defaultFacebookAPIBase,
+	) + "/me?fields=email,first_name,last_name,name,picture"
 
 	oauthScopes := []string{
 		"email",
@@ -74,7 +80,10 @@ func (p facebookProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return p.Exchange(context.Background(), code)
 }
 
-func (p facebookProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (p facebookProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	hash := hmac.New(sha256.New, []byte(p.Config.ClientSecret))
 	hash.Write([]byte(tok.AccessToken))
 	appsecretProof := hex.EncodeToString(hash.Sum(nil))

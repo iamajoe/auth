@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
 	"gopkg.in/h2non/gock.v1"
 )
 
@@ -112,7 +112,12 @@ func (ts *SmsProviderTestSuite) TestTwilioSendSms() {
 				Status:       "failed",
 				MessageSID:   "abcdef",
 			}),
-			ExpectedError: fmt.Errorf("twilio error: %v %v for message %v", "failed to send sms", "401", "abcdef"),
+			ExpectedError: fmt.Errorf(
+				"twilio error: %v %v for message %v",
+				"failed to send sms",
+				"401",
+				"abcdef",
+			),
 		},
 		{
 			Desc: "Non-2xx status code returned",
@@ -160,11 +165,17 @@ func (ts *SmsProviderTestSuite) TestMessagebirdSendSms() {
 		"type":       {"sms"},
 		"datacoding": {"unicode"},
 	}
-	gock.New(messagebirdProvider.APIPath).Post("").MatchHeader("Authorization", "AccessKey "+messagebirdProvider.Config.AccessKey).MatchType("url").BodyString(body.Encode()).Reply(200).JSON(MessagebirdResponse{
-		Recipients: MessagebirdResponseRecipients{
-			TotalSentCount: 1,
-		},
-	})
+	gock.New(messagebirdProvider.APIPath).
+		Post("").
+		MatchHeader("Authorization", "AccessKey "+messagebirdProvider.Config.AccessKey).
+		MatchType("url").
+		BodyString(body.Encode()).
+		Reply(200).
+		JSON(MessagebirdResponse{
+			Recipients: MessagebirdResponseRecipients{
+				TotalSentCount: 1,
+			},
+		})
 
 	_, err = messagebirdProvider.SendSms(phone, message)
 	require.NoError(ts.T(), err)
@@ -189,11 +200,16 @@ func (ts *SmsProviderTestSuite) TestVonageSendSms() {
 		"api_secret": {vonageProvider.Config.ApiSecret},
 	}
 
-	gock.New(vonageProvider.APIPath).Post("").MatchType("url").BodyString(body.Encode()).Reply(200).JSON(VonageResponse{
-		Messages: []VonageResponseMessage{
-			{Status: "0"},
-		},
-	})
+	gock.New(vonageProvider.APIPath).
+		Post("").
+		MatchType("url").
+		BodyString(body.Encode()).
+		Reply(200).
+		JSON(VonageResponse{
+			Messages: []VonageResponseMessage{
+				{Status: "0"},
+			},
+		})
 
 	_, err = vonageProvider.SendSms(phone, message)
 	require.NoError(ts.T(), err)
@@ -216,10 +232,15 @@ func (ts *SmsProviderTestSuite) TestTextLocalSendSms() {
 		"numbers": {phone},
 	}
 
-	gock.New(textlocalProvider.APIPath).Post("").MatchType("url").BodyString(body.Encode()).Reply(200).JSON(TextlocalResponse{
-		Status: "success",
-		Errors: []TextlocalError{},
-	})
+	gock.New(textlocalProvider.APIPath).
+		Post("").
+		MatchType("url").
+		BodyString(body.Encode()).
+		Reply(200).
+		JSON(TextlocalResponse{
+			Status: "success",
+			Errors: []TextlocalError{},
+		})
 
 	_, err = textlocalProvider.SendSms(phone, message)
 	require.NoError(ts.T(), err)

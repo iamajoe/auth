@@ -11,15 +11,15 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/storage"
 )
 
 type SSOProvider struct {
 	ID uuid.UUID `db:"id" json:"id"`
 
 	SAMLProvider SAMLProvider `has_one:"saml_providers" fk_id:"sso_provider_id" json:"saml,omitempty"`
-	SSODomains   []SSODomain  `has_many:"sso_domains" fk_id:"sso_provider_id" json:"domains"`
+	SSODomains   []SSODomain  `                         fk_id:"sso_provider_id" json:"domains"        has_many:"sso_domains"`
 
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
@@ -113,9 +113,9 @@ type SAMLProvider struct {
 	ID uuid.UUID `db:"id" json:"-"`
 
 	SSOProvider   *SSOProvider `belongs_to:"sso_providers" json:"-"`
-	SSOProviderID uuid.UUID    `db:"sso_provider_id" json:"-"`
+	SSOProviderID uuid.UUID    `                           json:"-" db:"sso_provider_id"`
 
-	EntityID    string  `db:"entity_id" json:"entity_id"`
+	EntityID    string  `db:"entity_id"    json:"entity_id"`
 	MetadataXML string  `db:"metadata_xml" json:"metadata_xml,omitempty"`
 	MetadataURL *string `db:"metadata_url" json:"metadata_url,omitempty"`
 
@@ -139,7 +139,7 @@ type SSODomain struct {
 	ID uuid.UUID `db:"id" json:"-"`
 
 	SSOProvider   *SSOProvider `belongs_to:"sso_providers" json:"-"`
-	SSOProviderID uuid.UUID    `db:"sso_provider_id" json:"-"`
+	SSOProviderID uuid.UUID    `                           json:"-" db:"sso_provider_id"`
 
 	Domain string `db:"domain" json:"domain"`
 
@@ -161,10 +161,10 @@ type SAMLRelayState struct {
 
 	RedirectTo string `db:"redirect_to"`
 
-	CreatedAt   time.Time  `db:"created_at" json:"-"`
-	UpdatedAt   time.Time  `db:"updated_at" json:"-"`
+	CreatedAt   time.Time  `db:"created_at"    json:"-"`
+	UpdatedAt   time.Time  `db:"updated_at"    json:"-"`
 	FlowStateID *uuid.UUID `db:"flow_state_id" json:"flow_state_id,omitempty"`
-	FlowState   *FlowState `db:"-" json:"flow_state,omitempty" belongs_to:"flow_state"`
+	FlowState   *FlowState `db:"-"             json:"flow_state,omitempty"    belongs_to:"flow_state"`
 }
 
 func (s SAMLRelayState) TableName() string {
@@ -203,7 +203,10 @@ func FindSSOProviderByID(tx *storage.Connection, id uuid.UUID) (*SSOProvider, er
 	return &ssoProvider, nil
 }
 
-func FindSSOProviderForEmailAddress(tx *storage.Connection, emailAddress string) (*SSOProvider, error) {
+func FindSSOProviderForEmailAddress(
+	tx *storage.Connection,
+	emailAddress string,
+) (*SSOProvider, error) {
 	parts := strings.Split(emailAddress, "@")
 	emailDomain := strings.ToLower(parts[1])
 

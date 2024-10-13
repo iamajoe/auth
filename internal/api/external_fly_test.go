@@ -12,8 +12,8 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/models"
 )
 
 func (ts *ExternalTestSuite) TestSignupExternalFly() {
@@ -31,16 +31,26 @@ func (ts *ExternalTestSuite) TestSignupExternalFly() {
 
 	claims := ExternalProviderClaims{}
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
-	_, err = p.ParseWithClaims(q.Get("state"), &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(ts.Config.JWT.Secret), nil
-	})
+	_, err = p.ParseWithClaims(
+		q.Get("state"),
+		&claims,
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(ts.Config.JWT.Secret), nil
+		},
+	)
 	ts.Require().NoError(err)
 
 	ts.Equal("fly", claims.Provider)
 	ts.Equal(ts.Config.SiteURL, claims.SiteURL)
 }
 
-func FlyTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *int, code string, email string) *httptest.Server {
+func FlyTestSignupSetup(
+	ts *ExternalTestSuite,
+	tokenCount *int,
+	userCount *int,
+	code string,
+	email string,
+) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth/token":
@@ -50,11 +60,18 @@ func FlyTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *int, 
 			ts.Equal(ts.Config.External.Fly.RedirectURI, r.FormValue("redirect_uri"))
 
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprint(w, `{"access_token":"fly_token","expires_in":100000,"refresh_token":"fly_refresh_token"}`)
+			fmt.Fprint(
+				w,
+				`{"access_token":"fly_token","expires_in":100000,"refresh_token":"fly_refresh_token"}`,
+			)
 		case "/oauth/token/info":
 			*userCount++
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"resource_owner_id":"test_resource_owner_id","scope":["read"],"expires_in":1111,"application":{"uid":"test_app_uid"},"created_at":1696003692,"user_id":"test_user_id","user_name":"test_user","email":"%s","organizations":[{"id":"test_org_id","role":"test"}]}`, email)
+			fmt.Fprintf(
+				w,
+				`{"resource_owner_id":"test_resource_owner_id","scope":["read"],"expires_in":1111,"application":{"uid":"test_app_uid"},"created_at":1696003692,"user_id":"test_user_id","user_name":"test_user","email":"%s","organizations":[{"id":"test_org_id","role":"test"}]}`,
+				email,
+			)
 		default:
 			w.WriteHeader(500)
 			ts.Fail("unknown fly oauth call %s", r.URL.Path)
@@ -75,7 +92,16 @@ func (ts *ExternalTestSuite) TestSignupExternalFly_AuthorizationCode() {
 
 	u := performAuthorization(ts, "fly", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "fly@example.com", "test_user", "test_user_id", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"fly@example.com",
+		"test_user",
+		"test_user_id",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalFly_PKCE() {
@@ -117,7 +143,11 @@ func (ts *ExternalTestSuite) TestSignupExternalFly_PKCE() {
 			require.NotEmpty(ts.T(), authCode)
 
 			// Check for valid provider access token, mock does not return refresh token
-			user, err := models.FindUserByEmailAndAudience(ts.API.db, "fly@example.com", ts.Config.JWT.Aud)
+			user, err := models.FindUserByEmailAndAudience(
+				ts.API.db,
+				"fly@example.com",
+				ts.Config.JWT.Aud,
+			)
 			require.NoError(ts.T(), err)
 			require.NotEmpty(ts.T(), user)
 			flowState, err := models.FindFlowStateByAuthCode(ts.API.db, authCode)
@@ -130,7 +160,11 @@ func (ts *ExternalTestSuite) TestSignupExternalFly_PKCE() {
 				"code_verifier": codeVerifier,
 				"auth_code":     authCode,
 			}))
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=pkce", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=pkce",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			ts.API.handler.ServeHTTP(w, req)
@@ -157,7 +191,13 @@ func (ts *ExternalTestSuite) TestSignupExternalFlyDisableSignupErrorWhenNoUser()
 
 	u := performAuthorization(ts, "fly", code, "")
 
-	assertAuthorizationFailure(ts, u, "Signups not allowed for this instance", "access_denied", email)
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Signups not allowed for this instance",
+		"access_denied",
+		email,
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalFlyDisableSignupErrorWhenEmptyEmail() {
@@ -170,7 +210,13 @@ func (ts *ExternalTestSuite) TestSignupExternalFlyDisableSignupErrorWhenEmptyEma
 
 	u := performAuthorization(ts, "fly", code, "")
 
-	assertAuthorizationFailure(ts, u, "Error getting user email from external provider", "server_error", "fly@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Error getting user email from external provider",
+		"server_error",
+		"fly@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalFlyDisableSignupSuccessWithPrimaryEmail() {
@@ -186,7 +232,16 @@ func (ts *ExternalTestSuite) TestSignupExternalFlyDisableSignupSuccessWithPrimar
 
 	u := performAuthorization(ts, "fly", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "fly@example.com", "test_user", "test_user_id", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"fly@example.com",
+		"test_user",
+		"test_user_id",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalFlySuccessWhenMatchingToken() {
@@ -201,7 +256,16 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalFlySuccessWhenMatchingToken(
 
 	u := performAuthorization(ts, "fly", code, "invite_token")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "fly@example.com", "test_user", "test_user_id", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"fly@example.com",
+		"test_user",
+		"test_user_id",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalFlyErrorWhenNoMatchingToken() {
@@ -239,7 +303,13 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalFlyErrorWhenEmailDoesntMatch
 
 	u := performAuthorization(ts, "fly", code, "invite_token")
 
-	assertAuthorizationFailure(ts, u, "Invited email does not match emails from external provider", "invalid_request", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Invited email does not match emails from external provider",
+		"invalid_request",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalFlyErrorWhenUserBanned() {
@@ -251,7 +321,16 @@ func (ts *ExternalTestSuite) TestSignupExternalFlyErrorWhenUserBanned() {
 	defer server.Close()
 
 	u := performAuthorization(ts, "fly", code, "")
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "fly@example.com", "test_user", "test_user_id", "")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"fly@example.com",
+		"test_user",
+		"test_user_id",
+		"",
+	)
 
 	user, err := models.FindUserByEmailAndAudience(ts.API.db, "fly@example.com", ts.Config.JWT.Aud)
 	require.NoError(ts.T(), err)

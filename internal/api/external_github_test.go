@@ -12,8 +12,8 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/models"
 )
 
 func (ts *ExternalTestSuite) TestSignupExternalGithub() {
@@ -31,16 +31,26 @@ func (ts *ExternalTestSuite) TestSignupExternalGithub() {
 
 	claims := ExternalProviderClaims{}
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
-	_, err = p.ParseWithClaims(q.Get("state"), &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(ts.Config.JWT.Secret), nil
-	})
+	_, err = p.ParseWithClaims(
+		q.Get("state"),
+		&claims,
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(ts.Config.JWT.Secret), nil
+		},
+	)
 	ts.Require().NoError(err)
 
 	ts.Equal("github", claims.Provider)
 	ts.Equal(ts.Config.SiteURL, claims.SiteURL)
 }
 
-func GitHubTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *int, code string, emails string) *httptest.Server {
+func GitHubTestSignupSetup(
+	ts *ExternalTestSuite,
+	tokenCount *int,
+	userCount *int,
+	code string,
+	emails string,
+) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/login/oauth/access_token":
@@ -54,7 +64,10 @@ func GitHubTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *in
 		case "/api/v3/user":
 			*userCount++
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprint(w, `{"id":123, "name":"GitHub Test","avatar_url":"http://example.com/avatar"}`)
+			fmt.Fprint(
+				w,
+				`{"id":123, "name":"GitHub Test","avatar_url":"http://example.com/avatar"}`,
+			)
 		case "/api/v3/user/emails":
 			w.Header().Add("Content-Type", "application/json")
 			fmt.Fprint(w, emails)
@@ -78,7 +91,16 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHub_AuthorizationCode() {
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "github@example.com", "GitHub Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"github@example.com",
+		"GitHub Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHub_PKCE() {
@@ -124,7 +146,11 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHub_PKCE() {
 			require.NotEmpty(ts.T(), authCode)
 
 			// Check for valid provider access token, mock does not return refresh token
-			user, err := models.FindUserByEmailAndAudience(ts.API.db, "github@example.com", ts.Config.JWT.Aud)
+			user, err := models.FindUserByEmailAndAudience(
+				ts.API.db,
+				"github@example.com",
+				ts.Config.JWT.Aud,
+			)
 			require.NoError(ts.T(), err)
 			require.NotEmpty(ts.T(), user)
 			flowState, err := models.FindFlowStateByAuthCode(ts.API.db, authCode)
@@ -137,7 +163,11 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHub_PKCE() {
 				"code_verifier": codeVerifier,
 				"auth_code":     authCode,
 			}))
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=pkce", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=pkce",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			ts.API.handler.ServeHTTP(w, req)
@@ -165,7 +195,13 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupErrorWhenNoUse
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationFailure(ts, u, "Signups not allowed for this instance", "access_denied", "github@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Signups not allowed for this instance",
+		"access_denied",
+		"github@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupErrorWhenEmptyEmail() {
@@ -178,7 +214,13 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupErrorWhenEmpty
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationFailure(ts, u, "Error getting user email from external provider", "server_error", "github@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Error getting user email from external provider",
+		"server_error",
+		"github@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupSuccessWithPrimaryEmail() {
@@ -194,7 +236,16 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupSuccessWithPri
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "github@example.com", "GitHub Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"github@example.com",
+		"GitHub Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupSuccessWithNonPrimaryEmail() {
@@ -210,7 +261,16 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubDisableSignupSuccessWithNon
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "secondary@example.com", "GitHub Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"secondary@example.com",
+		"GitHub Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalGitHubSuccessWhenMatchingToken() {
@@ -225,7 +285,16 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalGitHubSuccessWhenMatchingTok
 
 	u := performAuthorization(ts, "github", code, "invite_token")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "github@example.com", "GitHub Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"github@example.com",
+		"GitHub Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalGitHubErrorWhenNoMatchingToken() {
@@ -263,7 +332,13 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalGitHubErrorWhenEmailDoesntMa
 
 	u := performAuthorization(ts, "github", code, "invite_token")
 
-	assertAuthorizationFailure(ts, u, "Invited email does not match emails from external provider", "invalid_request", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Invited email does not match emails from external provider",
+		"invalid_request",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHubErrorWhenVerifiedFalse() {
@@ -276,7 +351,13 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubErrorWhenVerifiedFalse() {
 
 	u := performAuthorization(ts, "github", code, "")
 
-	assertAuthorizationFailure(ts, u, "Unverified email with github. A confirmation email has been sent to your github email", "access_denied", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Unverified email with github. A confirmation email has been sent to your github email",
+		"access_denied",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalGitHubErrorWhenUserBanned() {
@@ -287,9 +368,22 @@ func (ts *ExternalTestSuite) TestSignupExternalGitHubErrorWhenUserBanned() {
 	defer server.Close()
 
 	u := performAuthorization(ts, "github", code, "")
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "github@example.com", "GitHub Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"github@example.com",
+		"GitHub Test",
+		"123",
+		"http://example.com/avatar",
+	)
 
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, "github@example.com", ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"github@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 	t := time.Now().Add(24 * time.Hour)
 	user.BannedUntil = &t

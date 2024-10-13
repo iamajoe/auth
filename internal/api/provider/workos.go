@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/mitchellh/mapstructure"
-	"github.com/supabase/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -57,7 +57,10 @@ func (g workosProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return g.Exchange(context.Background(), code)
 }
 
-func (g workosProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g workosProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	if tok.AccessToken == "" {
 		return &UserProvidedData{}, nil
 	}

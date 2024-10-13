@@ -11,12 +11,12 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
 )
 
 type InviteTestSuite struct {
@@ -53,7 +53,13 @@ func (ts *InviteTestSuite) makeSuperAdmin(email string) string {
 		require.NoError(ts.T(), ts.API.db.Destroy(u), "Error deleting user")
 	}
 
-	u, err := models.NewUser("123456789", email, "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test User"})
+	u, err := models.NewUser(
+		"123456789",
+		email,
+		"test",
+		ts.Config.JWT.Aud,
+		map[string]interface{}{"full_name": "Test User"},
+	)
 	require.NoError(ts.T(), err, "Error making new user")
 	require.NoError(ts.T(), ts.API.db.Create(u))
 
@@ -168,7 +174,11 @@ func (ts *InviteTestSuite) TestInvite_WithoutAccess() {
 	w := httptest.NewRecorder()
 
 	ts.API.handler.ServeHTTP(w, req)
-	assert.Equal(ts.T(), http.StatusUnauthorized, w.Code) // 401 OK because the invite request above has no Authorization header
+	assert.Equal(
+		ts.T(),
+		http.StatusUnauthorized,
+		w.Code,
+	) // 401 OK because the invite request above has no Authorization header
 }
 
 func (ts *InviteTestSuite) TestVerifyInvite() {
@@ -208,10 +218,22 @@ func (ts *InviteTestSuite) TestVerifyInvite() {
 			user.InvitedAt = &now
 			user.ConfirmationSentAt = &now
 			user.EncryptedPassword = nil
-			user.ConfirmationToken = crypto.GenerateTokenHash(c.email, c.requestBody["token"].(string))
+			user.ConfirmationToken = crypto.GenerateTokenHash(
+				c.email,
+				c.requestBody["token"].(string),
+			)
 			require.NoError(ts.T(), err)
 			require.NoError(ts.T(), ts.API.db.Create(user))
-			require.NoError(ts.T(), models.CreateOneTimeToken(ts.API.db, user.ID, user.GetEmail(), user.ConfirmationToken, models.ConfirmationToken))
+			require.NoError(
+				ts.T(),
+				models.CreateOneTimeToken(
+					ts.API.db,
+					user.ID,
+					user.GetEmail(),
+					user.ConfirmationToken,
+					models.ConfirmationToken,
+				),
+			)
 
 			// Find test user
 			_, err = models.FindUserByEmailAndAudience(ts.API.db, c.email, ts.Config.JWT.Aud)
@@ -251,7 +273,10 @@ func (ts *InviteTestSuite) TestInviteExternalGitlab() {
 		case "/api/v4/user":
 			userCount++
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprint(w, `{"name":"Gitlab Test","email":"gitlab@example.com","avatar_url":"http://example.com/avatar","confirmed_at": "2020-01-01T00:00:00.000Z"}`)
+			fmt.Fprint(
+				w,
+				`{"name":"Gitlab Test","email":"gitlab@example.com","avatar_url":"http://example.com/avatar","confirmed_at": "2020-01-01T00:00:00.000Z"}`,
+			)
 		case "/api/v4/user/emails":
 			w.Header().Add("Content-Type", "application/json")
 			fmt.Fprint(w, `[]`)
@@ -277,11 +302,19 @@ func (ts *InviteTestSuite) TestInviteExternalGitlab() {
 	ts.Require().Equal(http.StatusOK, w.Code)
 
 	// Find test user
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, "gitlab@example.com", ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"gitlab@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 
 	// get redirect url w/ state
-	req = httptest.NewRequest(http.MethodGet, "http://localhost/authorize?provider=gitlab&invite_token="+user.ConfirmationToken, nil)
+	req = httptest.NewRequest(
+		http.MethodGet,
+		"http://localhost/authorize?provider=gitlab&invite_token="+user.ConfirmationToken,
+		nil,
+	)
 	w = httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
 	ts.Require().Equal(http.StatusFound, w.Code)
@@ -319,7 +352,11 @@ func (ts *InviteTestSuite) TestInviteExternalGitlab() {
 	ts.Equal(1, userCount)
 
 	// ensure user has been created with metadata
-	user, err = models.FindUserByEmailAndAudience(ts.API.db, "gitlab@example.com", ts.Config.JWT.Aud)
+	user, err = models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"gitlab@example.com",
+		ts.Config.JWT.Aud,
+	)
 	ts.Require().NoError(err)
 	ts.Equal("Gitlab Test", user.UserMetaData["full_name"])
 	ts.Equal("http://example.com/avatar", user.UserMetaData["avatar_url"])
@@ -343,7 +380,10 @@ func (ts *InviteTestSuite) TestInviteExternalGitlab_MismatchedEmails() {
 		case "/api/v4/user":
 			userCount++
 			w.Header().Add("Content-Type", "application/json")
-			fmt.Fprint(w, `{"name":"Gitlab Test","email":"gitlab+mismatch@example.com","avatar_url":"http://example.com/avatar","confirmed_at": "2020-01-01T00:00:00.000Z"}`)
+			fmt.Fprint(
+				w,
+				`{"name":"Gitlab Test","email":"gitlab+mismatch@example.com","avatar_url":"http://example.com/avatar","confirmed_at": "2020-01-01T00:00:00.000Z"}`,
+			)
 		case "/api/v4/user/emails":
 			w.Header().Add("Content-Type", "application/json")
 			fmt.Fprint(w, `[]`)
@@ -369,11 +409,19 @@ func (ts *InviteTestSuite) TestInviteExternalGitlab_MismatchedEmails() {
 	ts.Require().Equal(http.StatusOK, w.Code)
 
 	// Find test user
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, "gitlab@example.com", ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"gitlab@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 
 	// get redirect url w/ state
-	req = httptest.NewRequest(http.MethodGet, "http://localhost/authorize?provider=gitlab&invite_token="+user.ConfirmationToken, nil)
+	req = httptest.NewRequest(
+		http.MethodGet,
+		"http://localhost/authorize?provider=gitlab&invite_token="+user.ConfirmationToken,
+		nil,
+	)
 	w = httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
 	ts.Require().Equal(http.StatusFound, w.Code)

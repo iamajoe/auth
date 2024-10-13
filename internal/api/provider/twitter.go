@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/mrjones/oauth"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
 	"golang.org/x/oauth2"
 )
 
@@ -65,16 +65,26 @@ func (t TwitterProvider) GetOAuthToken(_ string) (*oauth2.Token, error) {
 }
 
 // GetUserData is a stub method for OAuthProvider interface, unused in OAuth1.0 protocol
-func (t TwitterProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (t TwitterProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	return &UserProvidedData{}, nil
 }
 
 // FetchUserData retrieves the user's data from the twitter provider
-func (t TwitterProvider) FetchUserData(ctx context.Context, tok *oauth.AccessToken) (*UserProvidedData, error) {
+func (t TwitterProvider) FetchUserData(
+	ctx context.Context,
+	tok *oauth.AccessToken,
+) (*UserProvidedData, error) {
 	var u twitterUser
 	resp, err := t.Consumer.Get(
 		t.UserInfoURL,
-		map[string]string{"include_entities": "false", "skip_status": "true", "include_email": "true"},
+		map[string]string{
+			"include_entities": "false",
+			"skip_status":      "true",
+			"include_email":    "true",
+		},
 		tok,
 	)
 	if err != nil {
@@ -82,7 +92,10 @@ func (t TwitterProvider) FetchUserData(ctx context.Context, tok *oauth.AccessTok
 	}
 	defer utilities.SafeClose(resp.Body)
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return &UserProvidedData{}, fmt.Errorf("a %v error occurred with retrieving user from twitter", resp.StatusCode)
+		return &UserProvidedData{}, fmt.Errorf(
+			"a %v error occurred with retrieving user from twitter",
+			resp.StatusCode,
+		)
 	}
 	bits, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -10,10 +10,10 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/gobuffalo/pop/v6"
 	"github.com/gobuffalo/pop/v6/columns"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
 )
 
 // Connection is the interface a storage provider must implement.
@@ -33,7 +33,9 @@ func Dial(config *conf.GlobalConfiguration) (*Connection, error) {
 
 	driver := ""
 	if config.DB.Driver != "postgres" {
-		logrus.Warn("DEPRECATION NOTICE: only PostgreSQL is supported by Supabase's GoTrue, will be removed soon")
+		logrus.Warn(
+			"DEPRECATION NOTICE: only PostgreSQL is supported by Supabase's GoTrue, will be removed soon",
+		)
 	} else {
 		// pop v5 uses pgx as the default PostgreSQL driver
 		driver = "pgx"
@@ -42,7 +44,8 @@ func Dial(config *conf.GlobalConfiguration) (*Connection, error) {
 	if driver != "" && (config.Tracing.Enabled || config.Metrics.Enabled) {
 		instrumentedDriver, err := otelsql.Register(driver)
 		if err != nil {
-			logrus.WithError(err).Errorf("unable to instrument sql driver %q for use with OpenTelemetry", driver)
+			logrus.WithError(err).
+				Errorf("unable to instrument sql driver %q for use with OpenTelemetry", driver)
 		} else {
 			logrus.Debugf("using %s as an instrumented driver for OpenTelemetry", instrumentedDriver)
 
@@ -92,7 +95,8 @@ func Dial(config *conf.GlobalConfiguration) (*Connection, error) {
 func registerOpenTelemetryDatabaseStats(db *pop.Connection) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			logrus.WithField("error", rec).Error("registerOpenTelemetryDatabaseStats is not able to determine database object with reflection -- panicked")
+			logrus.WithField("error", rec).
+				Error("registerOpenTelemetryDatabaseStats is not able to determine database object with reflection -- panicked")
 		}
 	}()
 
@@ -102,7 +106,9 @@ func registerOpenTelemetryDatabaseStats(db *pop.Connection) {
 
 	sqldb, ok := sqldbfield.Interface().(*sql.DB)
 	if !ok || sqldb == nil {
-		logrus.Error("registerOpenTelemetryDatabaseStats is not able to determine database object with reflection")
+		logrus.Error(
+			"registerOpenTelemetryDatabaseStats is not able to determine database object with reflection",
+		)
 		return
 	}
 

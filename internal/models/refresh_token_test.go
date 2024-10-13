@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage/test"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
 )
 
 type RefreshTokenTestSuite struct {
@@ -69,7 +69,13 @@ func (ts *RefreshTokenTestSuite) TestLogout() {
 
 	require.NoError(ts.T(), Logout(ts.db, u.ID))
 	u, r, _, err = FindUserWithRefreshToken(ts.db, r.Token, false)
-	require.Errorf(ts.T(), err, "expected error when there are no refresh tokens to authenticate. user: %v token: %v", u, r)
+	require.Errorf(
+		ts.T(),
+		err,
+		"expected error when there are no refresh tokens to authenticate. user: %v token: %v",
+		u,
+		r,
+	)
 
 	require.True(ts.T(), IsNotFoundError(err), "expected NotFoundError")
 }

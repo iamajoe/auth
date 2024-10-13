@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 const (
@@ -94,10 +94,20 @@ func (t *TextlocalProvider) SendSms(phone string, message string) (string, error
 		}
 
 		if len(resp.Errors) > 0 && resp.Errors[0].Code == textLocalTemplateErrorCode {
-			return messageID, fmt.Errorf("textlocal error: %v (code: %v) template message: %s", resp.Errors[0].Message, resp.Errors[0].Code, message)
+			return messageID, fmt.Errorf(
+				"textlocal error: %v (code: %v) template message: %s",
+				resp.Errors[0].Message,
+				resp.Errors[0].Code,
+				message,
+			)
 		}
 
-		return messageID, fmt.Errorf("textlocal error: %v (code: %v) message %s", resp.Errors[0].Message, resp.Errors[0].Code, messageID)
+		return messageID, fmt.Errorf(
+			"textlocal error: %v (code: %v) message %s",
+			resp.Errors[0].Message,
+			resp.Errors[0].Code,
+			messageID,
+		)
 	}
 
 	return messageID, nil

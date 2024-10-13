@@ -7,14 +7,14 @@ import (
 
 	"net/http/httptest"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/hooks"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/hooks"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 
 	"gopkg.in/h2non/gock.v1"
 )
@@ -51,7 +51,13 @@ func TestHooks(t *testing.T) {
 
 func (ts *HooksTestSuite) SetupTest() {
 	models.TruncateAll(ts.API.db)
-	u, err := models.NewUser("123456789", "testemail@gmail.com", "securetestpassword", ts.Config.JWT.Aud, nil)
+	u, err := models.NewUser(
+		"123456789",
+		"testemail@gmail.com",
+		"securetestpassword",
+		ts.Config.JWT.Aud,
+		nil,
+	)
 	require.NoError(ts.T(), err, "Error creating test user model")
 	require.NoError(ts.T(), ts.API.db.Create(u), "Error saving new test user")
 	ts.TestUser = u
@@ -255,13 +261,15 @@ func (ts *HooksTestSuite) TestInvokeHookIntegration() {
 			uri:         testPGUri,
 		},
 		{
-			description:   "Unsupported protocol error",
-			conn:          nil,
-			request:       httptest.NewRequest("POST", authEndpoint, nil),
-			input:         &hooks.SendEmailInput{},
-			output:        &hooks.SendEmailOutput{},
-			uri:           "ftp://example.com/path",
-			expectedError: errors.New("unsupported protocol: \"ftp://example.com/path\" only postgres hooks and HTTPS functions are supported at the moment"),
+			description: "Unsupported protocol error",
+			conn:        nil,
+			request:     httptest.NewRequest("POST", authEndpoint, nil),
+			input:       &hooks.SendEmailInput{},
+			output:      &hooks.SendEmailOutput{},
+			uri:         "ftp://example.com/path",
+			expectedError: errors.New(
+				"unsupported protocol: \"ftp://example.com/path\" only postgres hooks and HTTPS functions are supported at the moment",
+			),
 		},
 	}
 

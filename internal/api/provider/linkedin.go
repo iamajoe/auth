@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -66,7 +66,10 @@ type linkedinElements struct {
 }
 
 // NewLinkedinProvider creates a Linkedin account provider.
-func NewLinkedinProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewLinkedinProvider(
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -107,7 +110,10 @@ func GetName(name linkedinName) string {
 	return myMap[key].(string)
 }
 
-func (g linkedinProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g linkedinProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u linkedinUser
 	if err := makeRequest(ctx, tok, g.Config, g.APIPath+"/v2/me?projection=(id,firstName,lastName,profilePicture(displayImage~:playableStreams))", &u); err != nil {
 		return nil, err

@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type AuditTestSuite struct {
@@ -42,7 +42,13 @@ func (ts *AuditTestSuite) SetupTest() {
 }
 
 func (ts *AuditTestSuite) makeSuperAdmin(email string) string {
-	u, err := models.NewUser("", email, "test", ts.Config.JWT.Aud, map[string]interface{}{"full_name": "Test User"})
+	u, err := models.NewUser(
+		"",
+		email,
+		"test",
+		ts.Config.JWT.Aud,
+		map[string]interface{}{"full_name": "Test User"},
+	)
 	require.NoError(ts.T(), err, "Error making new user")
 
 	u.Role = "supabase_admin"

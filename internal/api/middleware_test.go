@@ -14,10 +14,10 @@ import (
 	"github.com/didip/tollbooth/v5"
 	"github.com/didip/tollbooth/v5/limiter"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
 )
 
 const (
@@ -51,7 +51,8 @@ func (ts *MiddlewareTestSuite) TestVerifyCaptchaValid() {
 	adminClaims := &AccessTokenClaims{
 		Role: "supabase_admin",
 	}
-	adminJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, adminClaims).SignedString([]byte(ts.Config.JWT.Secret))
+	adminJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, adminClaims).
+		SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err)
 	cases := []struct {
 		desc             string
@@ -487,7 +488,11 @@ func (ts *MiddlewareTestSuite) TestLimitHandlerWithSharedLimiter() {
 			sharedLimiter := ts.API.limitEmailOrPhoneSentHandler(NewLimiterOptions(ts.Config))
 
 			// get the minimum amount to reach the threshold just before the rate limit is exceeded
-			threshold := min(c.sharedLimiterConfig.RateLimitEmailSent, c.sharedLimiterConfig.RateLimitSmsSent, c.ipBasedLimiterConfig)
+			threshold := min(
+				c.sharedLimiterConfig.RateLimitEmailSent,
+				c.sharedLimiterConfig.RateLimitSmsSent,
+				c.ipBasedLimiterConfig,
+			)
 			for i := 0; i < int(threshold); i++ {
 				var buffer bytes.Buffer
 				require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(c.body))
@@ -573,7 +578,11 @@ func (ts *MiddlewareTestSuite) TestIsValidAuthorizedEmail() {
 			req := httptest.NewRequest(http.MethodPost, "http://localhost"+c.reqPath, &buffer)
 			w := httptest.NewRecorder()
 			if _, err := ts.API.isValidAuthorizedEmail(w, req); err != nil {
-				require.Equal(ts.T(), err.(*HTTPError).ErrorCode, ErrorCodeEmailAddressNotAuthorized)
+				require.Equal(
+					ts.T(),
+					err.(*HTTPError).ErrorCode,
+					ErrorCodeEmailAddressNotAuthorized,
+				)
 			}
 		})
 	}

@@ -5,15 +5,15 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/rs/cors"
 	"github.com/sebest/xff"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 	"github.com/supabase/hibp"
 )
 
@@ -58,16 +58,25 @@ func (a *API) deprecationNotices() {
 	log := logrus.WithField("component", "api")
 
 	if config.JWT.AdminGroupName != "" {
-		log.Warn("DEPRECATION NOTICE: GOTRUE_JWT_ADMIN_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon")
+		log.Warn(
+			"DEPRECATION NOTICE: GOTRUE_JWT_ADMIN_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon",
+		)
 	}
 
 	if config.JWT.DefaultGroupName != "" {
-		log.Warn("DEPRECATION NOTICE: GOTRUE_JWT_DEFAULT_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon")
+		log.Warn(
+			"DEPRECATION NOTICE: GOTRUE_JWT_DEFAULT_GROUP_NAME not supported by Supabase's GoTrue, will be removed soon",
+		)
 	}
 }
 
 // NewAPIWithVersion creates a new REST API using the specified version
-func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Connection, version string, opt ...Option) *API {
+func NewAPIWithVersion(
+	globalConfig *conf.GlobalConfiguration,
+	db *storage.Connection,
+	version string,
+	opt ...Option,
+) *API {
 	api := &API{config: globalConfig, db: db, version: version}
 
 	for _, o := range opt {
@@ -89,7 +98,10 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 		}
 
 		if api.config.Password.HIBP.Bloom.Enabled {
-			cache := utilities.NewHIBPBloomCache(api.config.Password.HIBP.Bloom.Items, api.config.Password.HIBP.Bloom.FalsePositives)
+			cache := utilities.NewHIBPBloomCache(
+				api.config.Password.HIBP.Bloom.Items,
+				api.config.Password.HIBP.Bloom.FalsePositives,
+			)
 			api.hibpClient.Cache = cache
 
 			logrus.Infof("Pwned passwords cache is %.2f KB", float64(cache.Cap())/(8*1024.0))
@@ -153,7 +165,10 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 				}
 				if params.Email == "" && params.Phone == "" {
 					if !api.config.External.AnonymousUsers.Enabled {
-						return unprocessableEntityError(ErrorCodeAnonymousProviderDisabled, "Anonymous sign-ins are disabled")
+						return unprocessableEntityError(
+							ErrorCodeAnonymousProviderDisabled,
+							"Anonymous sign-ins are disabled",
+						)
 					}
 					if _, err := api.limitHandler(limitAnonymousSignIns)(w, r); err != nil {
 						return err
@@ -173,7 +188,8 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 			})
 		})
 		r.With(api.limitHandler(api.limiterOpts.Recover)).
-			With(sharedLimiter).With(api.verifyCaptcha).With(api.requireEmailProvider).Post("/recover", api.Recover)
+			With(sharedLimiter).
+			With(api.verifyCaptcha).With(api.requireEmailProvider).Post("/recover", api.Recover)
 
 		r.With(api.limitHandler(api.limiterOpts.Resend)).
 			With(sharedLimiter).With(api.verifyCaptcha).Post("/resend", api.Resend)
@@ -287,8 +303,24 @@ func NewAPIWithVersion(globalConfig *conf.GlobalConfiguration, db *storage.Conne
 	})
 
 	corsHandler := cors.New(cors.Options{
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete},
-		AllowedHeaders:   globalConfig.CORS.AllAllowedHeaders([]string{"Accept", "Authorization", "Content-Type", "X-Client-IP", "X-Client-Info", audHeaderName, useCookieHeader, APIVersionHeaderName}),
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodDelete,
+		},
+		AllowedHeaders: globalConfig.CORS.AllAllowedHeaders(
+			[]string{
+				"Accept",
+				"Authorization",
+				"Content-Type",
+				"X-Client-IP",
+				"X-Client-Info",
+				audHeaderName,
+				useCookieHeader,
+				APIVersionHeaderName,
+			},
+		),
 		ExposedHeaders:   []string{"X-Total-Count", "Link", APIVersionHeaderName},
 		AllowCredentials: true,
 	})

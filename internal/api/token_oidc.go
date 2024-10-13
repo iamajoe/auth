@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 // IdTokenGrantParams are the parameters the IdTokenGrant method accepts
@@ -24,7 +24,11 @@ type IdTokenGrantParams struct {
 	Issuer      string `json:"issuer"`
 }
 
-func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.GlobalConfiguration, r *http.Request) (*oidc.Provider, bool, string, []string, error) {
+func (p *IdTokenGrantParams) getProvider(
+	ctx context.Context,
+	config *conf.GlobalConfiguration,
+	r *http.Request,
+) (*oidc.Provider, bool, string, []string, error) {
 	log := observability.GetLogEntry(r).Entry
 
 	var cfg *conf.OAuthProviderConfiguration
@@ -54,7 +58,10 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 		if issuer == "" || !provider.IsAzureIssuer(issuer) {
 			detectedIssuer, err := provider.DetectAzureIDTokenIssuer(ctx, p.IdToken)
 			if err != nil {
-				return nil, false, "", nil, badRequestError(ErrorCodeValidationFailed, "Unable to detect issuer in ID token for Azure provider").WithInternalError(err)
+				return nil, false, "", nil, badRequestError(
+					ErrorCodeValidationFailed,
+					"Unable to detect issuer in ID token for Azure provider",
+				).WithInternalError(err)
 			}
 			issuer = detectedIssuer
 		}
@@ -84,10 +91,14 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 		cfg = &config.External.VercelMarketplace
 		providerType = "vercel_marketplace"
 		issuer = provider.IssuerVercelMarketplace
-		acceptableClientIDs = append(acceptableClientIDs, config.External.VercelMarketplace.ClientID...)
+		acceptableClientIDs = append(
+			acceptableClientIDs,
+			config.External.VercelMarketplace.ClientID...)
 
 	default:
-		log.WithField("issuer", p.Issuer).WithField("client_id", p.ClientID).Warn("Use of POST /token with arbitrary issuer and client_id is deprecated for security reasons. Please switch to using the API with provider only!")
+		log.WithField("issuer", p.Issuer).
+			WithField("client_id", p.ClientID).
+			Warn("Use of POST /token with arbitrary issuer and client_id is deprecated for security reasons. Please switch to using the API with provider only!")
 
 		allowed := false
 		for _, allowedIssuer := range config.External.AllowedIdTokenIssuers {
@@ -101,7 +112,10 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 		}
 
 		if !allowed {
-			return nil, false, "", nil, badRequestError(ErrorCodeValidationFailed, fmt.Sprintf("Custom OIDC provider %q not allowed", p.Provider))
+			return nil, false, "", nil, badRequestError(
+				ErrorCodeValidationFailed,
+				fmt.Sprintf("Custom OIDC provider %q not allowed", p.Provider),
+			)
 		}
 
 		cfg = &conf.OAuthProviderConfiguration{
@@ -111,7 +125,10 @@ func (p *IdTokenGrantParams) getProvider(ctx context.Context, config *conf.Globa
 	}
 
 	if !cfg.Enabled {
-		return nil, false, "", nil, badRequestError(ErrorCodeProviderDisabled, fmt.Sprintf("Provider (issuer %q) is not enabled", issuer))
+		return nil, false, "", nil, badRequestError(
+			ErrorCodeProviderDisabled,
+			fmt.Sprintf("Provider (issuer %q) is not enabled", issuer),
+		)
 	}
 
 	oidcProvider, err := oidc.NewProvider(ctx, issuer)
@@ -142,15 +159,25 @@ func (a *API) IdTokenGrant(ctx context.Context, w http.ResponseWriter, r *http.R
 		return oauthError("invalid request", "provider or client_id and issuer required")
 	}
 
-	oidcProvider, skipNonceCheck, providerType, acceptableClientIDs, err := params.getProvider(ctx, config, r)
+	oidcProvider, skipNonceCheck, providerType, acceptableClientIDs, err := params.getProvider(
+		ctx,
+		config,
+		r,
+	)
 	if err != nil {
 		return err
 	}
 
-	idToken, userData, err := provider.ParseIDToken(ctx, oidcProvider, nil, params.IdToken, provider.ParseIDTokenOptions{
-		SkipAccessTokenCheck: params.AccessToken == "",
-		AccessToken:          params.AccessToken,
-	})
+	idToken, userData, err := provider.ParseIDToken(
+		ctx,
+		oidcProvider,
+		nil,
+		params.IdToken,
+		provider.ParseIDTokenOptions{
+			SkipAccessTokenCheck: params.AccessToken == "",
+			AccessToken:          params.AccessToken,
+		},
+	)
 	if err != nil {
 		return oauthError("invalid request", "Bad ID token").WithInternalError(err)
 	}
@@ -190,7 +217,10 @@ func (a *API) IdTokenGrant(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	if !correctAudience {
-		return oauthError("invalid request", fmt.Sprintf("Unacceptable audience in id_token: %v", idToken.Audience))
+		return oauthError(
+			"invalid request",
+			fmt.Sprintf("Unacceptable audience in id_token: %v", idToken.Audience),
+		)
 	}
 
 	if !skipNonceCheck {
@@ -198,7 +228,10 @@ func (a *API) IdTokenGrant(ctx context.Context, w http.ResponseWriter, r *http.R
 		paramsHasNonce := params.Nonce != ""
 
 		if tokenHasNonce != paramsHasNonce {
-			return oauthError("invalid request", "Passed nonce and nonce in id_token should either both exist or not.")
+			return oauthError(
+				"invalid request",
+				"Passed nonce and nonce in id_token should either both exist or not.",
+			)
 		} else if tokenHasNonce && paramsHasNonce {
 			// verify nonce to mitigate replay attacks
 			hash := fmt.Sprintf("%x", sha256.Sum256([]byte(params.Nonce)))
@@ -210,7 +243,9 @@ func (a *API) IdTokenGrant(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	if params.AccessToken == "" {
 		if idToken.AccessTokenHash != "" {
-			log.Warn("ID token has a at_hash claim, but no access_token parameter was provided. In future versions, access_token will be mandatory as it's security best practice.")
+			log.Warn(
+				"ID token has a at_hash claim, but no access_token parameter was provided. In future versions, access_token will be mandatory as it's security best practice.",
+			)
 		}
 	} else {
 		if idToken.AccessTokenHash == "" {

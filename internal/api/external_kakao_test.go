@@ -9,9 +9,9 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
 )
 
 func (ts *ExternalTestSuite) TestSignupExternalKakao() {
@@ -28,16 +28,26 @@ func (ts *ExternalTestSuite) TestSignupExternalKakao() {
 
 	claims := ExternalProviderClaims{}
 	p := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
-	_, err = p.ParseWithClaims(q.Get("state"), &claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(ts.Config.JWT.Secret), nil
-	})
+	_, err = p.ParseWithClaims(
+		q.Get("state"),
+		&claims,
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(ts.Config.JWT.Secret), nil
+		},
+	)
 	ts.Require().NoError(err)
 
 	ts.Equal("kakao", claims.Provider)
 	ts.Equal(ts.Config.SiteURL, claims.SiteURL)
 }
 
-func KakaoTestSignupSetup(ts *ExternalTestSuite, tokenCount *int, userCount *int, code string, emails string) *httptest.Server {
+func KakaoTestSignupSetup(
+	ts *ExternalTestSuite,
+	tokenCount *int,
+	userCount *int,
+	code string,
+	emails string,
+) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth/token":
@@ -106,7 +116,16 @@ func (ts *ExternalTestSuite) TestSignupExternalKakao_AuthorizationCode() {
 	server := KakaoTestSignupSetup(ts, &tokenCount, &userCount, code, emails)
 	defer server.Close()
 	u := performAuthorization(ts, "kakao", code, "")
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "kakao@example.com", "Kakao Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"kakao@example.com",
+		"Kakao Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupErrorWhenNoUser() {
@@ -119,7 +138,13 @@ func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupErrorWhenNoUser
 
 	u := performAuthorization(ts, "kakao", code, "")
 
-	assertAuthorizationFailure(ts, u, "Signups not allowed for this instance", "access_denied", "kakao@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Signups not allowed for this instance",
+		"access_denied",
+		"kakao@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupErrorWhenEmptyEmail() {
@@ -132,7 +157,13 @@ func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupErrorWhenEmptyE
 
 	u := performAuthorization(ts, "kakao", code, "")
 
-	assertAuthorizationFailure(ts, u, "Error getting user email from external provider", "server_error", "kakao@example.com")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Error getting user email from external provider",
+		"server_error",
+		"kakao@example.com",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupSuccessWithPrimaryEmail() {
@@ -148,7 +179,16 @@ func (ts *ExternalTestSuite) TestSignupExternalKakaoDisableSignupSuccessWithPrim
 
 	u := performAuthorization(ts, "kakao", code, "")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "kakao@example.com", "Kakao Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"kakao@example.com",
+		"Kakao Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalKakaoSuccessWhenMatchingToken() {
@@ -163,7 +203,16 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalKakaoSuccessWhenMatchingToke
 
 	u := performAuthorization(ts, "kakao", code, "invite_token")
 
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "kakao@example.com", "Kakao Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"kakao@example.com",
+		"Kakao Test",
+		"123",
+		"http://example.com/avatar",
+	)
 }
 
 func (ts *ExternalTestSuite) TestInviteTokenExternalKakaoErrorWhenNoMatchingToken() {
@@ -201,7 +250,13 @@ func (ts *ExternalTestSuite) TestInviteTokenExternalKakaoErrorWhenEmailDoesntMat
 
 	u := performAuthorization(ts, "kakao", code, "invite_token")
 
-	assertAuthorizationFailure(ts, u, "Invited email does not match emails from external provider", "invalid_request", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Invited email does not match emails from external provider",
+		"invalid_request",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalKakaoErrorWhenVerifiedFalse() {
@@ -214,7 +269,13 @@ func (ts *ExternalTestSuite) TestSignupExternalKakaoErrorWhenVerifiedFalse() {
 
 	u := performAuthorization(ts, "kakao", code, "")
 
-	assertAuthorizationFailure(ts, u, "Unverified email with kakao. A confirmation email has been sent to your kakao email", "access_denied", "")
+	assertAuthorizationFailure(
+		ts,
+		u,
+		"Unverified email with kakao. A confirmation email has been sent to your kakao email",
+		"access_denied",
+		"",
+	)
 }
 
 func (ts *ExternalTestSuite) TestSignupExternalKakaoErrorWhenUserBanned() {
@@ -225,9 +286,22 @@ func (ts *ExternalTestSuite) TestSignupExternalKakaoErrorWhenUserBanned() {
 	defer server.Close()
 
 	u := performAuthorization(ts, "kakao", code, "")
-	assertAuthorizationSuccess(ts, u, tokenCount, userCount, "kakao@example.com", "Kakao Test", "123", "http://example.com/avatar")
+	assertAuthorizationSuccess(
+		ts,
+		u,
+		tokenCount,
+		userCount,
+		"kakao@example.com",
+		"Kakao Test",
+		"123",
+		"http://example.com/avatar",
+	)
 
-	user, err := models.FindUserByEmailAndAudience(ts.API.db, "kakao@example.com", ts.Config.JWT.Aud)
+	user, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"kakao@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 	t := time.Now().Add(24 * time.Hour)
 	user.BannedUntil = &t

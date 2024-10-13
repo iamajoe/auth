@@ -11,9 +11,9 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
 )
 
 type Cleanup struct {
@@ -43,41 +43,112 @@ func NewCleanup(config *conf.GlobalConfiguration) *Cleanup {
 	// as this makes sure that only rows that are not being used in another
 	// transaction are deleted. These deletes are thus very quick and
 	// efficient, as they don't wait on other transactions.
-	c.cleanupStatements = append(c.cleanupStatements,
-		fmt.Sprintf("delete from %q where id in (select id from %q where revoked is true and updated_at < now() - interval '24 hours' limit 100 for update skip locked);", tableRefreshTokens, tableRefreshTokens),
-		fmt.Sprintf("update %q set revoked = true, updated_at = now() where id in (select %q.id from %q join %q on %q.session_id = %q.id where %q.not_after < now() - interval '24 hours' and %q.revoked is false limit 100 for update skip locked);", tableRefreshTokens, tableRefreshTokens, tableRefreshTokens, tableSessions, tableRefreshTokens, tableSessions, tableSessions, tableRefreshTokens),
+	c.cleanupStatements = append(
+		c.cleanupStatements,
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where revoked is true and updated_at < now() - interval '24 hours' limit 100 for update skip locked);",
+			tableRefreshTokens,
+			tableRefreshTokens,
+		),
+		fmt.Sprintf(
+			"update %q set revoked = true, updated_at = now() where id in (select %q.id from %q join %q on %q.session_id = %q.id where %q.not_after < now() - interval '24 hours' and %q.revoked is false limit 100 for update skip locked);",
+			tableRefreshTokens,
+			tableRefreshTokens,
+			tableRefreshTokens,
+			tableSessions,
+			tableRefreshTokens,
+			tableSessions,
+			tableSessions,
+			tableRefreshTokens,
+		),
 		// sessions are deleted after 72 hours to allow refresh tokens
 		// to be deleted piecemeal; 10 at once so that cascades don't
 		// overwork the database
-		fmt.Sprintf("delete from %q where id in (select id from %q where not_after < now() - interval '72 hours' limit 10 for update skip locked);", tableSessions, tableSessions),
-		fmt.Sprintf("delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);", tableRelayStates, tableRelayStates),
-		fmt.Sprintf("delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);", tableFlowStates, tableFlowStates),
-		fmt.Sprintf("delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);", tableMFAChallenges, tableMFAChallenges),
-		fmt.Sprintf("delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' and status = 'unverified' limit 100 for update skip locked);", tableMFAFactors, tableMFAFactors),
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where not_after < now() - interval '72 hours' limit 10 for update skip locked);",
+			tableSessions,
+			tableSessions,
+		),
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);",
+			tableRelayStates,
+			tableRelayStates,
+		),
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);",
+			tableFlowStates,
+			tableFlowStates,
+		),
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' limit 100 for update skip locked);",
+			tableMFAChallenges,
+			tableMFAChallenges,
+		),
+		fmt.Sprintf(
+			"delete from %q where id in (select id from %q where created_at < now() - interval '24 hours' and status = 'unverified' limit 100 for update skip locked);",
+			tableMFAFactors,
+			tableMFAFactors,
+		),
 	)
 
 	if config.External.AnonymousUsers.Enabled {
 		// delete anonymous users older than 30 days
-		c.cleanupStatements = append(c.cleanupStatements,
-			fmt.Sprintf("delete from %q where id in (select id from %q where created_at < now() - interval '30 days' and is_anonymous is true limit 100 for update skip locked);", tableUsers, tableUsers),
+		c.cleanupStatements = append(
+			c.cleanupStatements,
+			fmt.Sprintf(
+				"delete from %q where id in (select id from %q where created_at < now() - interval '30 days' and is_anonymous is true limit 100 for update skip locked);",
+				tableUsers,
+				tableUsers,
+			),
 		)
 	}
 
 	if config.Sessions.Timebox != nil {
 		timeboxSeconds := int((*config.Sessions.Timebox).Seconds())
 
-		c.cleanupStatements = append(c.cleanupStatements, fmt.Sprintf("delete from %q where id in (select id from %q where created_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked);", tableSessions, tableSessions, timeboxSeconds))
+		c.cleanupStatements = append(
+			c.cleanupStatements,
+			fmt.Sprintf(
+				"delete from %q where id in (select id from %q where created_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked);",
+				tableSessions,
+				tableSessions,
+				timeboxSeconds,
+			),
+		)
 	}
 
 	if config.Sessions.InactivityTimeout != nil {
 		inactivitySeconds := int((*config.Sessions.InactivityTimeout).Seconds())
 
 		// delete sessions with a refreshed_at column
-		c.cleanupStatements = append(c.cleanupStatements, fmt.Sprintf("delete from %q where id in (select id from %q where refreshed_at is not null and refreshed_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked);", tableSessions, tableSessions, inactivitySeconds))
+		c.cleanupStatements = append(
+			c.cleanupStatements,
+			fmt.Sprintf(
+				"delete from %q where id in (select id from %q where refreshed_at is not null and refreshed_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked);",
+				tableSessions,
+				tableSessions,
+				inactivitySeconds,
+			),
+		)
 
 		// delete sessions without a refreshed_at column by looking for
 		// unrevoked refresh_tokens
-		c.cleanupStatements = append(c.cleanupStatements, fmt.Sprintf("delete from %q where id in (select %q.id as id from %q, %q where %q.session_id = %q.id and %q.refreshed_at is null and %q.revoked is false and %q.updated_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked)", tableSessions, tableSessions, tableSessions, tableRefreshTokens, tableRefreshTokens, tableSessions, tableSessions, tableRefreshTokens, tableRefreshTokens, inactivitySeconds))
+		c.cleanupStatements = append(
+			c.cleanupStatements,
+			fmt.Sprintf(
+				"delete from %q where id in (select %q.id as id from %q, %q where %q.session_id = %q.id and %q.refreshed_at is null and %q.revoked is false and %q.updated_at + interval '%d seconds' < now() - interval '24 hours' limit 100 for update skip locked)",
+				tableSessions,
+				tableSessions,
+				tableSessions,
+				tableRefreshTokens,
+				tableRefreshTokens,
+				tableSessions,
+				tableSessions,
+				tableRefreshTokens,
+				tableRefreshTokens,
+				inactivitySeconds,
+			),
+		)
 	}
 
 	meter := otel.Meter("gotrue")

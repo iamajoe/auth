@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/fatih/structs"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/crypto"
+	mail "github.com/iamajoe/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/crypto"
-	mail "github.com/supabase/auth/internal/mailer"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 const (
@@ -53,13 +53,19 @@ func (p *VerifyParams) Validate(r *http.Request, a *API) error {
 	switch r.Method {
 	case http.MethodGet:
 		if p.Token == "" {
-			return badRequestError(ErrorCodeValidationFailed, "Verify requires a token or a token hash")
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				"Verify requires a token or a token hash",
+			)
 		}
 		// TODO: deprecate the token query param from GET /verify and use token_hash instead (breaking change)
 		p.TokenHash = p.Token
 	case http.MethodPost:
 		if (p.Token == "" && p.TokenHash == "") || (p.Token != "" && p.TokenHash != "") {
-			return badRequestError(ErrorCodeValidationFailed, "Verify requires either a token or a token hash")
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				"Verify requires either a token or a token hash",
+			)
 		}
 		if p.Token != "" {
 			if isPhoneOtpVerification(p) {
@@ -154,7 +160,11 @@ func (a *API) verifyGet(w http.ResponseWriter, r *http.Request, params *VerifyPa
 			user, terr = a.emailChangeVerify(r, tx, params, user)
 			if user == nil && terr == nil {
 				// only one OTP is confirmed at this point, so we return early and ask the user to confirm the second OTP
-				rurl, terr = a.prepRedirectURL(singleConfirmationAccepted, params.RedirectTo, flowType)
+				rurl, terr = a.prepRedirectURL(
+					singleConfirmationAccepted,
+					params.RedirectTo,
+					flowType,
+				)
 				if terr != nil {
 					return terr
 				}
@@ -294,7 +304,12 @@ func (a *API) verifyPost(w http.ResponseWriter, r *http.Request, params *VerifyP
 	return sendJSON(w, http.StatusOK, token)
 }
 
-func (a *API) signupVerify(r *http.Request, ctx context.Context, conn *storage.Connection, user *models.User) (*models.User, error) {
+func (a *API) signupVerify(
+	r *http.Request,
+	ctx context.Context,
+	conn *storage.Connection,
+	user *models.User,
+) (*models.User, error) {
 	config := a.config
 
 	shouldUpdatePassword := false
@@ -336,7 +351,11 @@ func (a *API) signupVerify(r *http.Request, ctx context.Context, conn *storage.C
 	return user, nil
 }
 
-func (a *API) recoverVerify(r *http.Request, conn *storage.Connection, user *models.User) (*models.User, error) {
+func (a *API) recoverVerify(
+	r *http.Request,
+	conn *storage.Connection,
+	user *models.User,
+) (*models.User, error) {
 	err := conn.Transaction(func(tx *storage.Connection) error {
 		var terr error
 		if terr = user.Recover(tx); terr != nil {
@@ -364,7 +383,12 @@ func (a *API) recoverVerify(r *http.Request, conn *storage.Connection, user *mod
 	return user, nil
 }
 
-func (a *API) smsVerify(r *http.Request, conn *storage.Connection, user *models.User, params *VerifyParams) (*models.User, error) {
+func (a *API) smsVerify(
+	r *http.Request,
+	conn *storage.Connection,
+	user *models.User,
+	params *VerifyParams,
+) (*models.User, error) {
 
 	err := conn.Transaction(func(tx *storage.Connection) error {
 
@@ -422,7 +446,12 @@ func (a *API) smsVerify(r *http.Request, conn *storage.Connection, user *models.
 	return user, nil
 }
 
-func (a *API) prepErrorRedirectURL(err *HTTPError, r *http.Request, rurl string, flowType models.FlowType) (string, error) {
+func (a *API) prepErrorRedirectURL(
+	err *HTTPError,
+	r *http.Request,
+	rurl string,
+	flowType models.FlowType,
+) (string, error) {
 	u, perr := url.Parse(rurl)
 	if perr != nil {
 		return "", err
@@ -453,7 +482,11 @@ func (a *API) prepErrorRedirectURL(err *HTTPError, r *http.Request, rurl string,
 	return u.String(), nil
 }
 
-func (a *API) prepRedirectURL(message string, rurl string, flowType models.FlowType) (string, error) {
+func (a *API) prepRedirectURL(
+	message string,
+	rurl string,
+	flowType models.FlowType,
+) (string, error) {
 	u, perr := url.Parse(rurl)
 	if perr != nil {
 		return "", perr
@@ -480,26 +513,41 @@ func (a *API) prepPKCERedirectURL(rurl, code string) (string, error) {
 	return u.String(), nil
 }
 
-func (a *API) emailChangeVerify(r *http.Request, conn *storage.Connection, params *VerifyParams, user *models.User) (*models.User, error) {
+func (a *API) emailChangeVerify(
+	r *http.Request,
+	conn *storage.Connection,
+	params *VerifyParams,
+	user *models.User,
+) (*models.User, error) {
 	config := a.config
 	if !config.Mailer.Autoconfirm &&
 		config.Mailer.SecureEmailChangeEnabled &&
 		user.EmailChangeConfirmStatus == zeroConfirmation &&
 		user.GetEmail() != "" {
 		err := conn.Transaction(func(tx *storage.Connection) error {
-			currentOTT, terr := models.FindOneTimeToken(tx, params.TokenHash, models.EmailChangeTokenCurrent)
+			currentOTT, terr := models.FindOneTimeToken(
+				tx,
+				params.TokenHash,
+				models.EmailChangeTokenCurrent,
+			)
 			if terr != nil && !models.IsNotFoundError(terr) {
 				return terr
 			}
 
-			newOTT, terr := models.FindOneTimeToken(tx, params.TokenHash, models.EmailChangeTokenNew)
+			newOTT, terr := models.FindOneTimeToken(
+				tx,
+				params.TokenHash,
+				models.EmailChangeTokenNew,
+			)
 			if terr != nil && !models.IsNotFoundError(terr) {
 				return terr
 			}
 
 			user.EmailChangeConfirmStatus = singleConfirmation
 
-			if params.Token == user.EmailChangeTokenCurrent || params.TokenHash == user.EmailChangeTokenCurrent || (currentOTT != nil && params.TokenHash == currentOTT.TokenHash) {
+			if params.Token == user.EmailChangeTokenCurrent ||
+				params.TokenHash == user.EmailChangeTokenCurrent ||
+				(currentOTT != nil && params.TokenHash == currentOTT.TokenHash) {
 				user.EmailChangeTokenCurrent = ""
 				if terr := models.ClearOneTimeTokenForUser(tx, user.ID, models.EmailChangeTokenCurrent); terr != nil {
 					return terr
@@ -569,7 +617,10 @@ func (a *API) emailChangeVerify(r *http.Request, conn *storage.Connection, param
 	return user, nil
 }
 
-func (a *API) verifyTokenHash(conn *storage.Connection, params *VerifyParams) (*models.User, error) {
+func (a *API) verifyTokenHash(
+	conn *storage.Connection,
+	params *VerifyParams,
+) (*models.User, error) {
 	config := a.config
 
 	var user *models.User
@@ -590,9 +641,14 @@ func (a *API) verifyTokenHash(conn *storage.Connection, params *VerifyParams) (*
 
 	if err != nil {
 		if models.IsNotFoundError(err) {
-			return nil, forbiddenError(ErrorCodeOTPExpired, "Email link is invalid or has expired").WithInternalError(err)
+			return nil, forbiddenError(
+				ErrorCodeOTPExpired,
+				"Email link is invalid or has expired",
+			).WithInternalError(err)
 		}
-		return nil, internalServerError("Database error finding user from email link").WithInternalError(err)
+		return nil, internalServerError(
+			"Database error finding user from email link",
+		).WithInternalError(err)
 	}
 
 	if user.IsBanned() {
@@ -618,14 +674,21 @@ func (a *API) verifyTokenHash(conn *storage.Connection, params *VerifyParams) (*
 	}
 
 	if isExpired {
-		return nil, forbiddenError(ErrorCodeOTPExpired, "Email link is invalid or has expired").WithInternalMessage("email link has expired")
+		return nil, forbiddenError(
+			ErrorCodeOTPExpired,
+			"Email link is invalid or has expired",
+		).WithInternalMessage("email link has expired")
 	}
 
 	return user, nil
 }
 
 // verifyUserAndToken verifies the token associated to the user based on the verify type
-func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams, aud string) (*models.User, error) {
+func (a *API) verifyUserAndToken(
+	conn *storage.Connection,
+	params *VerifyParams,
+	aud string,
+) (*models.User, error) {
 	config := a.config
 
 	var user *models.User
@@ -640,14 +703,23 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	case mail.EmailChangeVerification:
 		// Since the email change could be trigger via the implicit or PKCE flow,
 		// the query used has to also check if the token saved in the db contains the pkce_ prefix
-		user, err = models.FindUserForEmailChange(conn, params.Email, tokenHash, aud, config.Mailer.SecureEmailChangeEnabled)
+		user, err = models.FindUserForEmailChange(
+			conn,
+			params.Email,
+			tokenHash,
+			aud,
+			config.Mailer.SecureEmailChangeEnabled,
+		)
 	default:
 		user, err = models.FindUserByEmailAndAudience(conn, params.Email, aud)
 	}
 
 	if err != nil {
 		if models.IsNotFoundError(err) {
-			return nil, forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalError(err)
+			return nil, forbiddenError(
+				ErrorCodeOTPExpired,
+				"Token has expired or is invalid",
+			).WithInternalError(err)
 		}
 		return nil, internalServerError("Database error finding user").WithInternalError(err)
 	}
@@ -662,7 +734,12 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	switch params.Type {
 	case mail.EmailOTPVerification:
 		// if the type is emailOTPVerification, we'll check both the confirmation_token and recovery_token columns
-		if isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp) {
+		if isOtpValid(
+			tokenHash,
+			user.ConfirmationToken,
+			user.ConfirmationSentAt,
+			config.Mailer.OtpExp,
+		) {
 			isValid = true
 			params.Type = mail.SignupVerification
 		} else if isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp) {
@@ -672,12 +749,32 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 			isValid = false
 		}
 	case mail.SignupVerification, mail.InviteVerification:
-		isValid = isOtpValid(tokenHash, user.ConfirmationToken, user.ConfirmationSentAt, config.Mailer.OtpExp)
+		isValid = isOtpValid(
+			tokenHash,
+			user.ConfirmationToken,
+			user.ConfirmationSentAt,
+			config.Mailer.OtpExp,
+		)
 	case mail.RecoveryVerification, mail.MagicLinkVerification:
-		isValid = isOtpValid(tokenHash, user.RecoveryToken, user.RecoverySentAt, config.Mailer.OtpExp)
+		isValid = isOtpValid(
+			tokenHash,
+			user.RecoveryToken,
+			user.RecoverySentAt,
+			config.Mailer.OtpExp,
+		)
 	case mail.EmailChangeVerification:
-		isValid = isOtpValid(tokenHash, user.EmailChangeTokenCurrent, user.EmailChangeSentAt, config.Mailer.OtpExp) ||
-			isOtpValid(tokenHash, user.EmailChangeTokenNew, user.EmailChangeSentAt, config.Mailer.OtpExp)
+		isValid = isOtpValid(
+			tokenHash,
+			user.EmailChangeTokenCurrent,
+			user.EmailChangeSentAt,
+			config.Mailer.OtpExp,
+		) ||
+			isOtpValid(
+				tokenHash,
+				user.EmailChangeTokenNew,
+				user.EmailChangeSentAt,
+				config.Mailer.OtpExp,
+			)
 	case phoneChangeVerification, smsVerification:
 		if testOTP, ok := config.Sms.GetTestOTP(params.Phone, time.Now()); ok {
 			if params.Token == testOTP {
@@ -696,7 +793,10 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 
 		if !config.Hook.SendSMS.Enabled && config.Sms.IsTwilioVerifyProvider() {
 			if err := smsProvider.(*sms_provider.TwilioVerifyProvider).VerifyOTP(phone, params.Token); err != nil {
-				return nil, forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalError(err)
+				return nil, forbiddenError(
+					ErrorCodeOTPExpired,
+					"Token has expired or is invalid",
+				).WithInternalError(err)
 			}
 			return user, nil
 		}
@@ -704,7 +804,10 @@ func (a *API) verifyUserAndToken(conn *storage.Connection, params *VerifyParams,
 	}
 
 	if !isValid {
-		return nil, forbiddenError(ErrorCodeOTPExpired, "Token has expired or is invalid").WithInternalMessage("token has expired or is invalid")
+		return nil, forbiddenError(
+			ErrorCodeOTPExpired,
+			"Token has expired or is invalid",
+		).WithInternalMessage("token has expired or is invalid")
 	}
 	return user, nil
 }

@@ -11,11 +11,11 @@ import (
 
 	"github.com/gobwas/glob"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
 )
 
 type MailTestSuite struct {
@@ -71,14 +71,20 @@ func (ts *MailTestSuite) TestValidateEmail() {
 			desc:          "empty email should return error",
 			email:         "",
 			expectedEmail: "",
-			expectedError: badRequestError(ErrorCodeValidationFailed, "An email address is required"),
+			expectedError: badRequestError(
+				ErrorCodeValidationFailed,
+				"An email address is required",
+			),
 		},
 		{
 			desc: "email length exceeds 255 characters",
 			// email has 256 characters
 			email:         "testtesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttesttest@example.com",
 			expectedEmail: "",
-			expectedError: badRequestError(ErrorCodeValidationFailed, "An email address is too long"),
+			expectedError: badRequestError(
+				ErrorCodeValidationFailed,
+				"An email address is too long",
+			),
 		},
 	}
 
@@ -96,7 +102,8 @@ func (ts *MailTestSuite) TestGenerateLink() {
 	claims := &AccessTokenClaims{
 		Role: "supabase_admin",
 	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
+		SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err, "Error generating admin jwt")
 
 	ts.setURIAllowListMap("http://localhost:8000/**")
@@ -210,7 +217,11 @@ func (ts *MailTestSuite) TestGenerateLink() {
 		ts.Run(c.Desc, func() {
 			var buffer bytes.Buffer
 			require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(c.Body))
-			req := httptest.NewRequest(http.MethodPost, customDomainUrl.String()+"/admin/generate_link", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				customDomainUrl.String()+"/admin/generate_link",
+				&buffer,
+			)
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 			w := httptest.NewRecorder()
 
@@ -231,7 +242,11 @@ func (ts *MailTestSuite) TestGenerateLink() {
 			require.Equal(ts.T(), c.ExpectedResponse["redirect_to"], data["redirect_to"])
 
 			// check if hashed_token matches hash function of email and the raw otp
-			require.Equal(ts.T(), crypto.GenerateTokenHash(c.Body.Email, data["email_otp"].(string)), data["hashed_token"])
+			require.Equal(
+				ts.T(),
+				crypto.GenerateTokenHash(c.Body.Email, data["email_otp"].(string)),
+				data["hashed_token"],
+			)
 
 			// check if the host used in the email link matches the initial request host
 			u, err := url.ParseRequestURI(data["action_link"].(string))

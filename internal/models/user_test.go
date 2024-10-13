@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/storage/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/storage/test"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -85,7 +85,10 @@ func (ts *UserTestSuite) TestUpdateUserMetadata() {
 func (ts *UserTestSuite) TestFindUserByConfirmationToken() {
 	u := ts.createUser()
 	tokenHash := "test_confirmation_token"
-	require.NoError(ts.T(), CreateOneTimeToken(ts.db, u.ID, "relates_to not used", tokenHash, ConfirmationToken))
+	require.NoError(
+		ts.T(),
+		CreateOneTimeToken(ts.db, u.ID, "relates_to not used", tokenHash, ConfirmationToken),
+	)
 
 	n, err := FindUserByConfirmationToken(ts.db, tokenHash)
 	require.NoError(ts.T(), err)
@@ -140,7 +143,10 @@ func (ts *UserTestSuite) TestFindUserByID() {
 func (ts *UserTestSuite) TestFindUserByRecoveryToken() {
 	u := ts.createUser()
 	tokenHash := "test_recovery_token"
-	require.NoError(ts.T(), CreateOneTimeToken(ts.db, u.ID, "relates_to not used", tokenHash, RecoveryToken))
+	require.NoError(
+		ts.T(),
+		CreateOneTimeToken(ts.db, u.ID, "relates_to not used", tokenHash, RecoveryToken),
+	)
 
 	n, err := FindUserByRecoveryToken(ts.db, tokenHash)
 	require.NoError(ts.T(), err)
@@ -242,7 +248,12 @@ func (ts *UserTestSuite) TestRemoveUnconfirmedIdentities() {
 	require.Empty(ts.T(), user.EncryptedPassword, "password still remains in user")
 
 	require.Len(ts.T(), user.Identities, 1, "only one identity must be remaining")
-	require.Equal(ts.T(), idTwitter.ID, user.Identities[0].ID, "remaining identity is not the expected one")
+	require.Equal(
+		ts.T(),
+		idTwitter.ID,
+		user.Identities[0].ID,
+		"remaining identity is not the expected one",
+	)
 
 	require.NotNil(ts.T(), user.AppMetaData)
 	require.Equal(ts.T(), user.AppMetaData["provider"], "twitter")
@@ -364,7 +375,11 @@ func (ts *UserTestSuite) TestUpdateUserEmailFailure() {
 
 	// UpdateUserEmail should fail with the email unique constraint violation error
 	//  since userB is using the secondary identity's email
-	require.ErrorIs(ts.T(), userA.UpdateUserEmailFromIdentities(ts.db), UserEmailUniqueConflictError{})
+	require.ErrorIs(
+		ts.T(),
+		userA.UpdateUserEmailFromIdentities(ts.db),
+		UserEmailUniqueConflictError{},
+	)
 	require.Equal(ts.T(), primaryIdentity.GetEmail(), userA.GetEmail())
 }
 
@@ -454,7 +469,14 @@ func (ts *UserTestSuite) TestAuthenticate() {
 			require.NoError(ts.T(), ts.db.Create(u))
 			require.NotNil(ts.T(), u)
 
-			isAuthenticated, _, err := u.Authenticate(context.Background(), ts.db, "test", nil, false, "")
+			isAuthenticated, _, err := u.Authenticate(
+				context.Background(),
+				ts.db,
+				"test",
+				nil,
+				false,
+				"",
+			)
 			require.NoError(ts.T(), err)
 			require.True(ts.T(), isAuthenticated)
 

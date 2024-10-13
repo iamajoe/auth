@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type TokenTestSuite struct {
@@ -81,7 +81,11 @@ func (ts *TokenTestSuite) TestSessionTimebox() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -116,7 +120,11 @@ func (ts *TokenTestSuite) TestSessionInactivityTimeout() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -130,7 +138,11 @@ func (ts *TokenTestSuite) TestSessionInactivityTimeout() {
 
 	assert.NoError(ts.T(), json.NewDecoder(w.Result().Body).Decode(&firstResult))
 	assert.Equal(ts.T(), "invalid_grant", firstResult.Error)
-	assert.Equal(ts.T(), "Invalid Refresh Token: Session Expired (Inactivity)", firstResult.ErrorDescription)
+	assert.Equal(
+		ts.T(),
+		"Invalid Refresh Token: Session Expired (Inactivity)",
+		firstResult.ErrorDescription,
+	)
 }
 
 func (ts *TokenTestSuite) TestFailedToSaveRefreshTokenResultCase() {
@@ -141,7 +153,11 @@ func (ts *TokenTestSuite) TestFailedToSaveRefreshTokenResultCase() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -191,7 +207,11 @@ func (ts *TokenTestSuite) TestSingleSessionPerUserNoTags() {
 	// just in case to give some delay between first and second session creation
 	time.Sleep(10 * time.Millisecond)
 
-	secondRefreshToken, err := models.GrantAuthenticatedUser(ts.API.db, ts.User, models.GrantParams{})
+	secondRefreshToken, err := models.GrantAuthenticatedUser(
+		ts.API.db,
+		ts.User,
+		models.GrantParams{},
+	)
 
 	require.NoError(ts.T(), err)
 
@@ -203,7 +223,11 @@ func (ts *TokenTestSuite) TestSingleSessionPerUserNoTags() {
 		"refresh_token": firstRefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -219,7 +243,11 @@ func (ts *TokenTestSuite) TestSingleSessionPerUserNoTags() {
 
 	assert.NoError(ts.T(), json.NewDecoder(w.Result().Body).Decode(&firstResult))
 	assert.Equal(ts.T(), "invalid_grant", firstResult.Error)
-	assert.Equal(ts.T(), "Invalid Refresh Token: Session Expired (Revoked by Newer Login)", firstResult.ErrorDescription)
+	assert.Equal(
+		ts.T(),
+		"Invalid Refresh Token: Session Expired (Revoked by Newer Login)",
+		firstResult.ErrorDescription,
+	)
 }
 
 func (ts *TokenTestSuite) TestRateLimitTokenRefresh() {
@@ -260,7 +288,11 @@ func (ts *TokenTestSuite) TestTokenPasswordGrantSuccess() {
 		"password": "password",
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -274,7 +306,11 @@ func (ts *TokenTestSuite) TestTokenRefreshTokenGrantSuccess() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -291,7 +327,11 @@ func (ts *TokenTestSuite) TestTokenPasswordGrantFailure() {
 		"password": "password",
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -339,7 +379,11 @@ func (ts *TokenTestSuite) TestTokenPKCEGrantFailure() {
 				"code_verifier": v.codeVerifier,
 				"auth_code":     v.authCode,
 			}))
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=pkce", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=pkce",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			ts.API.handler.ServeHTTP(w, req)
@@ -356,7 +400,11 @@ func (ts *TokenTestSuite) TestTokenRefreshTokenGrantFailure() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -384,7 +432,11 @@ func (ts *TokenTestSuite) TestRefreshTokenReuseRevocation() {
 			"refresh_token": refreshTokens[len(refreshTokens)-1],
 		}))
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/token?grant_type=refresh_token",
+			&buffer,
+		)
 		req.Header.Set("Content-Type", "application/json")
 
 		w := httptest.NewRecorder()
@@ -419,7 +471,11 @@ func (ts *TokenTestSuite) TestRefreshTokenReuseRevocation() {
 		"refresh_token": refreshTokens[0],
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -452,7 +508,11 @@ func (ts *TokenTestSuite) TestRefreshTokenReuseRevocation() {
 			"refresh_token": refreshTokens[i],
 		}))
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/token?grant_type=refresh_token",
+			&buffer,
+		)
 		req.Header.Set("Content-Type", "application/json")
 
 		w := httptest.NewRecorder()
@@ -467,7 +527,13 @@ func (ts *TokenTestSuite) TestRefreshTokenReuseRevocation() {
 
 		require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&response))
 		require.Equal(ts.T(), response.Error, "invalid_grant", "For refresh token %d", i)
-		require.Equal(ts.T(), response.ErrorDescription, "Invalid Refresh Token: Already Used", "For refresh token %d", i)
+		require.Equal(
+			ts.T(),
+			response.ErrorDescription,
+			"Invalid Refresh Token: Already Used",
+			"For refresh token %d",
+			i,
+		)
 	}
 }
 
@@ -501,7 +567,11 @@ func (ts *TokenTestSuite) TestTokenRefreshWithExpiredSession() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -524,7 +594,11 @@ func (ts *TokenTestSuite) TestTokenRefreshWithUnexpiredSession() {
 		"refresh_token": ts.RefreshToken.Token,
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -558,7 +632,11 @@ func (ts *TokenTestSuite) TestMagicLinkPKCESignIn() {
 	require.NoError(ts.T(), err)
 
 	// Verify OTP
-	requestUrl := fmt.Sprintf("http://localhost/verify?type=%v&token=%v", "magiclink", u.RecoveryToken)
+	requestUrl := fmt.Sprintf(
+		"http://localhost/verify?type=%v&token=%v",
+		"magiclink",
+		u.RecoveryToken,
+	)
 	req = httptest.NewRequest(http.MethodGet, requestUrl, &buffer)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -625,7 +703,10 @@ func (ts *TokenTestSuite) TestPasswordVerificationHook() {
 		ts.T().Run(c.desc, func(t *testing.T) {
 			ts.Config.Hook.PasswordVerificationAttempt.Enabled = true
 			ts.Config.Hook.PasswordVerificationAttempt.URI = c.uri
-			require.NoError(ts.T(), ts.Config.Hook.PasswordVerificationAttempt.PopulateExtensibilityPoint())
+			require.NoError(
+				ts.T(),
+				ts.Config.Hook.PasswordVerificationAttempt.PopulateExtensibilityPoint(),
+			)
 
 			err := ts.API.db.RawQuery(c.hookFunctionSQL).Exec()
 			require.NoError(t, err)
@@ -635,14 +716,21 @@ func (ts *TokenTestSuite) TestPasswordVerificationHook() {
 				"password": "password",
 			}))
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=password",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
 			ts.API.handler.ServeHTTP(w, req)
 
 			assert.Equal(ts.T(), c.expectedCode, w.Code)
-			cleanupHookSQL := fmt.Sprintf("drop function if exists %s", ts.Config.Hook.PasswordVerificationAttempt.HookName)
+			cleanupHookSQL := fmt.Sprintf(
+				"drop function if exists %s",
+				ts.Config.Hook.PasswordVerificationAttempt.HookName,
+			)
 			require.NoError(ts.T(), ts.API.db.RawQuery(cleanupHookSQL).Exec())
 			// Reset so it doesn't affect other tests
 			ts.Config.Hook.PasswordVerificationAttempt.Enabled = false
@@ -721,7 +809,11 @@ end; $$ language plpgsql;`,
 				"refresh_token": ts.RefreshToken.Token,
 			}))
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=refresh_token",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
@@ -754,7 +846,10 @@ end; $$ language plpgsql;`,
 				}
 			}
 
-			cleanupHookSQL := fmt.Sprintf("drop function if exists %s", ts.Config.Hook.CustomAccessToken.HookName)
+			cleanupHookSQL := fmt.Sprintf(
+				"drop function if exists %s",
+				ts.Config.Hook.CustomAccessToken.HookName,
+			)
 			require.NoError(t, ts.API.db.RawQuery(cleanupHookSQL).Exec())
 			ts.Config.Hook.CustomAccessToken.Enabled = false
 		})
@@ -763,7 +858,13 @@ end; $$ language plpgsql;`,
 
 func (ts *TokenTestSuite) TestAllowSelectAuthenticationMethods() {
 
-	companyUser, err := models.NewUser("12345678", "test@company.com", "password", ts.Config.JWT.Aud, nil)
+	companyUser, err := models.NewUser(
+		"12345678",
+		"test@company.com",
+		"password",
+		ts.Config.JWT.Aud,
+		nil,
+	)
 	t := time.Now()
 	companyUser.EmailConfirmedAt = &t
 	require.NoError(ts.T(), err, "Error creating test user model")
@@ -835,7 +936,11 @@ $$;`
 				"password": "password",
 			}))
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"http://localhost/token?grant_type=password",
+				&buffer,
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
@@ -843,13 +948,21 @@ $$;`
 
 			require.Equal(t, c.expectedStatus, w.Code, "Unexpected HTTP status code")
 			if c.expectedError != "" {
-				require.Contains(t, w.Body.String(), c.expectedError, "Expected error message not found")
+				require.Contains(
+					t,
+					w.Body.String(),
+					c.expectedError,
+					"Expected error message not found",
+				)
 			} else {
 				require.NotContains(t, w.Body.String(), "error", "Unexpected error occurred")
 			}
 
 			// Delete the function and cleanup
-			cleanupHookSQL := fmt.Sprintf("drop function if exists %s", ts.Config.Hook.CustomAccessToken.HookName)
+			cleanupHookSQL := fmt.Sprintf(
+				"drop function if exists %s",
+				ts.Config.Hook.CustomAccessToken.HookName,
+			)
 			require.NoError(t, ts.API.db.RawQuery(cleanupHookSQL).Exec())
 			ts.Config.Hook.CustomAccessToken.Enabled = false
 		})

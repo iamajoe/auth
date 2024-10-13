@@ -12,9 +12,9 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gobuffalo/pop/v6"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -22,58 +22,61 @@ import (
 type User struct {
 	ID uuid.UUID `json:"id" db:"id"`
 
-	Aud       string             `json:"aud" db:"aud"`
-	Role      string             `json:"role" db:"role"`
+	Aud       string             `json:"aud"   db:"aud"`
+	Role      string             `json:"role"  db:"role"`
 	Email     storage.NullString `json:"email" db:"email"`
-	IsSSOUser bool               `json:"-" db:"is_sso_user"`
+	IsSSOUser bool               `json:"-"     db:"is_sso_user"`
 
-	EncryptedPassword *string    `json:"-" db:"encrypted_password"`
+	EncryptedPassword *string    `json:"-"                            db:"encrypted_password"`
 	EmailConfirmedAt  *time.Time `json:"email_confirmed_at,omitempty" db:"email_confirmed_at"`
-	InvitedAt         *time.Time `json:"invited_at,omitempty" db:"invited_at"`
+	InvitedAt         *time.Time `json:"invited_at,omitempty"         db:"invited_at"`
 
-	Phone            storage.NullString `json:"phone" db:"phone"`
+	Phone            storage.NullString `json:"phone"                        db:"phone"`
 	PhoneConfirmedAt *time.Time         `json:"phone_confirmed_at,omitempty" db:"phone_confirmed_at"`
 
-	ConfirmationToken  string     `json:"-" db:"confirmation_token"`
+	ConfirmationToken  string     `json:"-"                              db:"confirmation_token"`
 	ConfirmationSentAt *time.Time `json:"confirmation_sent_at,omitempty" db:"confirmation_sent_at"`
 
 	// For backward compatibility only. Use EmailConfirmedAt or PhoneConfirmedAt instead.
 	ConfirmedAt *time.Time `json:"confirmed_at,omitempty" db:"confirmed_at" rw:"r"`
 
-	RecoveryToken  string     `json:"-" db:"recovery_token"`
+	RecoveryToken  string     `json:"-"                          db:"recovery_token"`
 	RecoverySentAt *time.Time `json:"recovery_sent_at,omitempty" db:"recovery_sent_at"`
 
-	EmailChangeTokenCurrent  string     `json:"-" db:"email_change_token_current"`
-	EmailChangeTokenNew      string     `json:"-" db:"email_change_token_new"`
-	EmailChange              string     `json:"new_email,omitempty" db:"email_change"`
+	EmailChangeTokenCurrent  string     `json:"-"                              db:"email_change_token_current"`
+	EmailChangeTokenNew      string     `json:"-"                              db:"email_change_token_new"`
+	EmailChange              string     `json:"new_email,omitempty"            db:"email_change"`
 	EmailChangeSentAt        *time.Time `json:"email_change_sent_at,omitempty" db:"email_change_sent_at"`
-	EmailChangeConfirmStatus int        `json:"-" db:"email_change_confirm_status"`
+	EmailChangeConfirmStatus int        `json:"-"                              db:"email_change_confirm_status"`
 
-	PhoneChangeToken  string     `json:"-" db:"phone_change_token"`
-	PhoneChange       string     `json:"new_phone,omitempty" db:"phone_change"`
+	PhoneChangeToken  string     `json:"-"                              db:"phone_change_token"`
+	PhoneChange       string     `json:"new_phone,omitempty"            db:"phone_change"`
 	PhoneChangeSentAt *time.Time `json:"phone_change_sent_at,omitempty" db:"phone_change_sent_at"`
 
-	ReauthenticationToken  string     `json:"-" db:"reauthentication_token"`
+	ReauthenticationToken  string     `json:"-"                                  db:"reauthentication_token"`
 	ReauthenticationSentAt *time.Time `json:"reauthentication_sent_at,omitempty" db:"reauthentication_sent_at"`
 
 	LastSignInAt *time.Time `json:"last_sign_in_at,omitempty" db:"last_sign_in_at"`
 
-	AppMetaData  JSONMap `json:"app_metadata" db:"raw_app_meta_data"`
+	AppMetaData  JSONMap `json:"app_metadata"  db:"raw_app_meta_data"`
 	UserMetaData JSONMap `json:"user_metadata" db:"raw_user_meta_data"`
 
 	Factors    []Factor   `json:"factors,omitempty" has_many:"factors"`
-	Identities []Identity `json:"identities" has_many:"identities"`
+	Identities []Identity `json:"identities"        has_many:"identities"`
 
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	CreatedAt   time.Time  `json:"created_at"             db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"             db:"updated_at"`
 	BannedUntil *time.Time `json:"banned_until,omitempty" db:"banned_until"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
-	IsAnonymous bool       `json:"is_anonymous" db:"is_anonymous"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"   db:"deleted_at"`
+	IsAnonymous bool       `json:"is_anonymous"           db:"is_anonymous"`
 
 	DONTUSEINSTANCEID uuid.UUID `json:"-" db:"instance_id"`
 }
 
-func NewUserWithPasswordHash(phone, email, passwordHash, aud string, userData map[string]interface{}) (*User, error) {
+func NewUserWithPasswordHash(
+	phone, email, passwordHash, aud string,
+	userData map[string]interface{},
+) (*User, error) {
 	if strings.HasPrefix(passwordHash, crypto.Argon2Prefix) {
 		_, err := crypto.ParseArgon2Hash(passwordHash)
 		if err != nil {
@@ -325,7 +328,12 @@ func (u *User) SetPhone(tx *storage.Connection, phone string) error {
 	return tx.UpdateOnly(u, "phone")
 }
 
-func (u *User) SetPassword(ctx context.Context, password string, encrypt bool, encryptionKeyID, encryptionKey string) error {
+func (u *User) SetPassword(
+	ctx context.Context,
+	password string,
+	encrypt bool,
+	encryptionKeyID, encryptionKey string,
+) error {
 	if password == "" {
 		u.EncryptedPassword = nil
 		return nil
@@ -338,7 +346,12 @@ func (u *User) SetPassword(ctx context.Context, password string, encrypt bool, e
 
 	u.EncryptedPassword = &pw
 	if encrypt {
-		es, err := crypto.NewEncryptedString(u.ID.String(), []byte(pw), encryptionKeyID, encryptionKey)
+		es, err := crypto.NewEncryptedString(
+			u.ID.String(),
+			[]byte(pw),
+			encryptionKeyID,
+			encryptionKey,
+		)
 		if err != nil {
 			return err
 		}
@@ -383,7 +396,14 @@ func (u *User) UpdatePassword(tx *storage.Connection, sessionID *uuid.UUID) erro
 }
 
 // Authenticate a user from a password
-func (u *User) Authenticate(ctx context.Context, tx *storage.Connection, password string, decryptionKeys map[string]string, encrypt bool, encryptionKeyID string) (bool, bool, error) {
+func (u *User) Authenticate(
+	ctx context.Context,
+	tx *storage.Connection,
+	password string,
+	decryptionKeys map[string]string,
+	encrypt bool,
+	encryptionKeyID string,
+) (bool, bool, error) {
 	if u.EncryptedPassword == nil {
 		return false, false, nil
 	}
@@ -406,7 +426,8 @@ func (u *User) Authenticate(ctx context.Context, tx *storage.Connection, passwor
 
 	compareErr := crypto.CompareHashAndPassword(ctx, hash, password)
 
-	if !strings.HasPrefix(hash, crypto.Argon2Prefix) && !strings.HasPrefix(hash, crypto.FirebaseScryptPrefix) {
+	if !strings.HasPrefix(hash, crypto.Argon2Prefix) &&
+		!strings.HasPrefix(hash, crypto.FirebaseScryptPrefix) {
 		// check if cost exceeds default cost or is too low
 		cost, err := bcrypt.Cost([]byte(hash))
 		if err != nil {
@@ -598,12 +619,24 @@ func findUser(tx *storage.Connection, query string, args ...interface{}) (*User,
 
 // FindUserByEmailAndAudience finds a user with the matching email and audience.
 func FindUserByEmailAndAudience(tx *storage.Connection, email, aud string) (*User, error) {
-	return findUser(tx, "instance_id = ? and LOWER(email) = ? and aud = ? and is_sso_user = false", uuid.Nil, strings.ToLower(email), aud)
+	return findUser(
+		tx,
+		"instance_id = ? and LOWER(email) = ? and aud = ? and is_sso_user = false",
+		uuid.Nil,
+		strings.ToLower(email),
+		aud,
+	)
 }
 
 // FindUserByPhoneAndAudience finds a user with the matching email and audience.
 func FindUserByPhoneAndAudience(tx *storage.Connection, phone, aud string) (*User, error) {
-	return findUser(tx, "instance_id = ? and phone = ? and aud = ? and is_sso_user = false", uuid.Nil, phone, aud)
+	return findUser(
+		tx,
+		"instance_id = ? and phone = ? and aud = ? and is_sso_user = false",
+		uuid.Nil,
+		phone,
+		aud,
+	)
 }
 
 // FindUserByID finds a user matching the provided ID.
@@ -616,7 +649,11 @@ func FindUserByID(tx *storage.Connection, id uuid.UUID) (*User, error) {
 // the form SELECT ... FOR UPDATE SKIP LOCKED. This means that a FOR UPDATE
 // lock will only be acquired if there's no other lock. In case there is a
 // lock, a IsNotFound(err) error will be returned.
-func FindUserWithRefreshToken(tx *storage.Connection, token string, forUpdate bool) (*User, *RefreshToken, *Session, error) {
+func FindUserWithRefreshToken(
+	tx *storage.Connection,
+	token string,
+	forUpdate bool,
+) (*User, *RefreshToken, *Session, error) {
 	refreshToken := &RefreshToken{}
 
 	if forUpdate {
@@ -659,7 +696,10 @@ func FindUserWithRefreshToken(tx *storage.Connection, token string, forUpdate bo
 				}
 
 				if !IsNotFoundError(err) {
-					return nil, nil, nil, errors.Wrap(err, "error finding session from refresh token")
+					return nil, nil, nil, errors.Wrap(
+						err,
+						"error finding session from refresh token",
+					)
 				}
 
 				// otherwise, there's no session for this refresh token
@@ -671,7 +711,13 @@ func FindUserWithRefreshToken(tx *storage.Connection, token string, forUpdate bo
 }
 
 // FindUsersInAudience finds users with the matching audience.
-func FindUsersInAudience(tx *storage.Connection, aud string, pageParams *Pagination, sortParams *SortParams, filter string) ([]*User, error) {
+func FindUsersInAudience(
+	tx *storage.Connection,
+	aud string,
+	pageParams *Pagination,
+	sortParams *SortParams,
+	filter string,
+) ([]*User, error) {
 	users := []*User{}
 	q := tx.Q().Where("instance_id = ? and aud = ?", uuid.Nil, aud)
 
@@ -700,7 +746,11 @@ func FindUsersInAudience(tx *storage.Connection, aud string, pageParams *Paginat
 
 // IsDuplicatedEmail returns whether a user exists with a matching email and audience.
 // If a currentUser is provided, we will need to filter out any identities that belong to the current user.
-func IsDuplicatedEmail(tx *storage.Connection, email, aud string, currentUser *User) (*User, error) {
+func IsDuplicatedEmail(
+	tx *storage.Connection,
+	email, aud string,
+	currentUser *User,
+) (*User, error) {
 	var identities []Identity
 
 	if err := tx.Eager().Q().Where("email = ?", strings.ToLower(email)).All(&identities); err != nil {
@@ -729,7 +779,10 @@ func IsDuplicatedEmail(tx *storage.Connection, email, aud string, currentUser *U
 		if userID != currentUserId {
 			user, err := FindUserByID(tx, userID)
 			if err != nil {
-				return nil, errors.Wrap(err, "unable to find user from email identity for duplicates")
+				return nil, errors.Wrap(
+					err,
+					"unable to find user from email identity for duplicates",
+				)
 			}
 			if user.Aud == aud {
 				return user, nil
@@ -979,5 +1032,11 @@ func obfuscateIdentityProviderId(identity *Identity) string {
 
 // FindUserByPhoneChangeAndAudience finds a user with the matching phone change and audience.
 func FindUserByPhoneChangeAndAudience(tx *storage.Connection, phone, aud string) (*User, error) {
-	return findUser(tx, "instance_id = ? and phone_change = ? and aud = ? and is_sso_user = false", uuid.Nil, phone, aud)
+	return findUser(
+		tx,
+		"instance_id = ? and phone_change = ? and aud = ? and is_sso_user = false",
+		uuid.Nil,
+		phone,
+		aud,
+	)
 }

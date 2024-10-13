@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	jwk "github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/supabase/auth/internal/conf"
 )
 
 type JwksResponse struct {

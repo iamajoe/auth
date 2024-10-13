@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/didip/tollbooth/v5"
-	"github.com/supabase/auth/internal/hooks"
+	"github.com/iamajoe/auth/internal/hooks"
 
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 var e164Format = regexp.MustCompile("^[1-9][0-9]{1,14}$")
@@ -28,7 +28,10 @@ const (
 func validatePhone(phone string) (string, error) {
 	phone = formatPhoneNumber(phone)
 	if isValid := validateE164Format(phone); !isValid {
-		return "", badRequestError(ErrorCodeValidationFailed, "Invalid phone number format (E.164 required)")
+		return "", badRequestError(
+			ErrorCodeValidationFailed,
+			"Invalid phone number format (E.164 required)",
+		)
 	}
 	return phone, nil
 }
@@ -44,7 +47,13 @@ func formatPhoneNumber(phone string) string {
 }
 
 // sendPhoneConfirmation sends an otp to the user's phone number
-func (a *API) sendPhoneConfirmation(r *http.Request, tx *storage.Connection, user *models.User, phone, otpType string, channel string) (string, error) {
+func (a *API) sendPhoneConfirmation(
+	r *http.Request,
+	tx *storage.Connection,
+	user *models.User,
+	phone, otpType string,
+	channel string,
+) (string, error) {
 	ctx := r.Context()
 	config := a.config
 
@@ -57,7 +66,12 @@ func (a *API) sendPhoneConfirmation(r *http.Request, tx *storage.Connection, use
 		token = &user.PhoneChangeToken
 		sentAt = user.PhoneChangeSentAt
 		user.PhoneChange = phone
-		includeFields = append(includeFields, "phone_change", "phone_change_token", "phone_change_sent_at")
+		includeFields = append(
+			includeFields,
+			"phone_change",
+			"phone_change_token",
+			"phone_change_sent_at",
+		)
 	case phoneConfirmationOtp:
 		token = &user.ConfirmationToken
 		sentAt = user.ConfirmationSentAt
@@ -73,7 +87,10 @@ func (a *API) sendPhoneConfirmation(r *http.Request, tx *storage.Connection, use
 	// intentionally keeping this before the test OTP, so that the behavior
 	// of regular and test OTPs is similar
 	if sentAt != nil && !sentAt.Add(config.Sms.MaxFrequency).Before(time.Now()) {
-		return "", tooManyRequestsError(ErrorCodeOverSMSSendRateLimit, generateFrequencyLimitErrorMessage(sentAt, config.Sms.MaxFrequency))
+		return "", tooManyRequestsError(
+			ErrorCodeOverSMSSendRateLimit,
+			generateFrequencyLimitErrorMessage(sentAt, config.Sms.MaxFrequency),
+		)
 	}
 
 	now := time.Now()
@@ -92,7 +109,10 @@ func (a *API) sendPhoneConfirmation(r *http.Request, tx *storage.Connection, use
 		limiter := getLimiter(ctx)
 		if limiter != nil {
 			if err := tollbooth.LimitByKeys(limiter.PhoneLimiter, []string{"phone_functions"}); err != nil {
-				return "", tooManyRequestsError(ErrorCodeOverSMSSendRateLimit, "SMS rate limit exceeded")
+				return "", tooManyRequestsError(
+					ErrorCodeOverSMSSendRateLimit,
+					"SMS rate limit exceeded",
+				)
 			}
 		}
 		otp, err = crypto.GenerateOtp(config.Sms.OtpLength)
@@ -158,7 +178,9 @@ func (a *API) sendPhoneConfirmation(r *http.Request, tx *storage.Connection, use
 		}
 	}
 	if ottErr != nil {
-		return messageID, internalServerError("error creating one time token").WithInternalError(ottErr)
+		return messageID, internalServerError(
+			"error creating one time token",
+		).WithInternalError(ottErr)
 	}
 	return messageID, nil
 }

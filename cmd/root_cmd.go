@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/observability"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/observability"
 )
 
 var (
@@ -25,8 +25,10 @@ var rootCmd = cobra.Command{
 // RootCommand will setup and return the root command
 func RootCommand() *cobra.Command {
 	rootCmd.AddCommand(&serveCmd, &migrateCmd, &versionCmd, adminCmd())
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "base configuration file to load")
-	rootCmd.PersistentFlags().StringVarP(&watchDir, "config-dir", "d", "", "directory containing a sorted list of config files to watch for changes")
+	rootCmd.PersistentFlags().
+		StringVarP(&configFile, "config", "c", "", "base configuration file to load")
+	rootCmd.PersistentFlags().
+		StringVarP(&watchDir, "config-dir", "d", "", "directory containing a sorted list of config files to watch for changes")
 	return &rootCmd
 }
 
@@ -58,6 +60,10 @@ func loadGlobalConfig(ctx context.Context) *conf.GlobalConfiguration {
 	return config
 }
 
-func execWithConfigAndArgs(cmd *cobra.Command, fn func(config *conf.GlobalConfiguration, args []string), args []string) {
+func execWithConfigAndArgs(
+	cmd *cobra.Command,
+	fn func(config *conf.GlobalConfiguration, args []string),
+	args []string,
+) {
 	fn(loadGlobalConfig(cmd.Context()), args)
 }

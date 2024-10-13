@@ -6,7 +6,7 @@ import (
 
 	"github.com/didip/tollbooth/v5/limiter"
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/supabase/auth/internal/models"
+	"github.com/iamajoe/auth/internal/models"
 )
 
 type contextKey string

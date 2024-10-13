@@ -7,12 +7,12 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/api/sms_provider"
+	"github.com/iamajoe/auth/internal/metering"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/api/sms_provider"
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
 )
 
 // SignupParams are the parameters the Signup endpoint accepts
@@ -39,7 +39,10 @@ func (a *API) validateSignupParams(ctx context.Context, p *SignupParams) error {
 		return err
 	}
 	if p.Email != "" && p.Phone != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Only an email address or phone number should be provided on signup.")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Only an email address or phone number should be provided on signup.",
+		)
 	}
 	if p.Provider == "phone" && !sms_provider.IsValidMessageChannel(p.Channel, config) {
 		return badRequestError(ErrorCodeValidationFailed, InvalidChannelError)
@@ -112,7 +115,10 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 	db := a.db.WithContext(ctx)
 
 	if config.DisableSignup {
-		return unprocessableEntityError(ErrorCodeSignupDisabled, "Signups not allowed for this instance")
+		return unprocessableEntityError(
+			ErrorCodeSignupDisabled,
+			"Signups not allowed for this instance",
+		)
 	}
 
 	params := &SignupParams{}
@@ -187,7 +193,8 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 	err = db.Transaction(func(tx *storage.Connection) error {
 		var terr error
 		if user != nil {
-			if (params.Provider == "email" && user.IsConfirmed()) || (params.Provider == "phone" && user.IsPhoneConfirmed()) {
+			if (params.Provider == "email" && user.IsConfirmed()) ||
+				(params.Provider == "phone" && user.IsPhoneConfirmed()) {
 				return UserExistsError
 			}
 			// do not update the user because we can't be sure of their claimed identity
@@ -229,7 +236,9 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 					return terr
 				}
 				if terr = user.Confirm(tx); terr != nil {
-					return internalServerError("Database error updating user").WithInternalError(terr)
+					return internalServerError(
+						"Database error updating user",
+					).WithInternalError(terr)
 				}
 			} else {
 				if terr = models.NewAuditLogEntry(r, tx, user, models.UserConfirmationRequestedAction, "", map[string]interface{}{
@@ -287,7 +296,10 @@ func (a *API) Signup(w http.ResponseWriter, r *http.Request) error {
 				return err
 			}
 			if config.Mailer.Autoconfirm || config.Sms.Autoconfirm {
-				return unprocessableEntityError(ErrorCodeUserAlreadyExists, "User already registered")
+				return unprocessableEntityError(
+					ErrorCodeUserAlreadyExists,
+					"User already registered",
+				)
 			}
 			sanitizedUser, err := sanitizeUser(user, params)
 			if err != nil {
@@ -383,7 +395,9 @@ func (a *API) signupNewUser(conn *storage.Connection, user *models.User) (*model
 	// user data as it is being inserted. thus we load the user object
 	// again to fetch those changes.
 	if err := conn.Reload(user); err != nil {
-		return nil, internalServerError("Database error loading user after sign-up").WithInternalError(err)
+		return nil, internalServerError(
+			"Database error loading user after sign-up",
+		).WithInternalError(err)
 	}
 
 	return user, nil

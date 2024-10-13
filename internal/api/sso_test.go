@@ -12,10 +12,10 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 const dateInPast = "2001-02-03T04:05:06.789"
@@ -50,7 +50,8 @@ func (ts *SSOTestSuite) SetupTest() {
 	claims := &AccessTokenClaims{
 		Role: "supabase_admin",
 	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).
+		SignedString([]byte(ts.Config.JWT.Secret))
 	require.NoError(ts.T(), err, "Error generating admin jwt")
 
 	ts.AdminJWT = token
@@ -106,7 +107,8 @@ func (ts *SSOTestSuite) TestAdminGetSSOProviderNotExist() {
 }
 
 func configurableSAMLIDPMetadata(entityID, validUntil, cacheDuration string) string {
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?><md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="%s" validUntil='%s' cacheDuration='%s'>
+	return fmt.Sprintf(
+		`<?xml version="1.0" encoding="UTF-8"?><md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="%s" validUntil='%s' cacheDuration='%s'>
   <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
       <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -134,7 +136,13 @@ x6lVV4kXi0x0n198/gkjnA85rPZoZ6dmqHtkcM0Gabgg6KEE5ubSDlWDsdv27uANceCZAoxd1+in
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="%s"/>
   </md:IDPSSODescriptor>
-</md:EntityDescriptor>`, entityID, validUntil, cacheDuration, entityID, entityID)
+</md:EntityDescriptor>`,
+		entityID,
+		validUntil,
+		cacheDuration,
+		entityID,
+		entityID,
+	)
 
 }
 
@@ -150,22 +158,40 @@ func (ts *SSOTestSuite) TestIsStaleSAMLMetadata() {
 		CacheDurationExceeded bool
 	}{
 		{
-			Description:           "Metadata is valid and within cache duration",
-			Metadata:              []byte(configurableSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B", dateInFarFuture, oneHour)),
+			Description: "Metadata is valid and within cache duration",
+			Metadata: []byte(
+				configurableSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+					dateInFarFuture,
+					oneHour,
+				),
+			),
 			IsStale:               false,
 			CacheDurationExceeded: false,
 		},
 		{
 
-			Description:           "Metadata is valid but is a minute past cache duration",
-			Metadata:              []byte(configurableSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B", currentTimeAsISO8601, oneHour)),
+			Description: "Metadata is valid but is a minute past cache duration",
+			Metadata: []byte(
+				configurableSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+					currentTimeAsISO8601,
+					oneHour,
+				),
+			),
 			IsStale:               true,
 			CacheDurationExceeded: true,
 		},
 
 		{
-			Description:           "Metadata is invalid but within cache duration",
-			Metadata:              []byte(configurableSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B", dateInPast, oneHour)),
+			Description: "Metadata is invalid but within cache duration",
+			Metadata: []byte(
+				configurableSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+					dateInPast,
+					oneHour,
+				),
+			),
 			IsStale:               true,
 			CacheDurationExceeded: false,
 		},
@@ -189,7 +215,8 @@ func (ts *SSOTestSuite) TestIsStaleSAMLMetadata() {
 }
 
 func validSAMLIDPMetadata(entityID string) string {
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?><md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="%s">
+	return fmt.Sprintf(
+		`<?xml version="1.0" encoding="UTF-8"?><md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="%s">
   <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
     <md:KeyDescriptor use="signing">
       <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -217,7 +244,11 @@ x6lVV4kXi0x0n198/gkjnA85rPZoZ6dmqHtkcM0Gabgg6KEE5ubSDlWDsdv27uANceCZAoxd1+in
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="%s"/>
     <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="%s"/>
   </md:IDPSSODescriptor>
-</md:EntityDescriptor>`, entityID, entityID, entityID)
+</md:EntityDescriptor>`,
+		entityID,
+		entityID,
+		entityID,
+	)
 }
 
 func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
@@ -244,29 +275,37 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 		{
 			StatusCode: http.StatusCreated,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-A"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-A",
+				),
 			},
 		},
 		{
 			StatusCode: http.StatusCreated,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+				),
 			},
 		},
 		{
 			StatusCode: http.StatusCreated,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-DUPLICATE"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-DUPLICATE",
+				),
 			},
 		},
 		{
 			StatusCode: http.StatusCreated,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-ATTRIBUTE-MAPPING"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-ATTRIBUTE-MAPPING",
+				),
 				"attribute_mapping": map[string]interface{}{
 					"keys": map[string]interface{}{
 						"username": map[string]interface{}{
@@ -279,15 +318,19 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 		{
 			StatusCode: http.StatusUnprocessableEntity,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-DUPLICATE"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-DUPLICATE",
+				),
 			},
 		},
 		{
 			StatusCode: http.StatusCreated,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-DOMAIN-A"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-DOMAIN-A",
+				),
 				"domains": []string{
 					"example.com",
 				},
@@ -296,8 +339,10 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 		{
 			StatusCode: http.StatusBadRequest,
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-DOMAIN-B"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-DOMAIN-B",
+				),
 				"domains": []string{
 					"example.com",
 				},
@@ -308,7 +353,9 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 			Request: map[string]interface{}{
 				"type":         "saml",
 				"metadata_url": "https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-METADATA-URL-TOO",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-METADATA-URL-TOO"),
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-WITH-METADATA-URL-TOO",
+				),
 			},
 		},
 		{
@@ -332,7 +379,11 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 		body, err := json.Marshal(example.Request)
 		require.NoError(ts.T(), err)
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/admin/sso/providers", bytes.NewBuffer(body))
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/admin/sso/providers",
+			bytes.NewBuffer(body),
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -341,7 +392,14 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 		response, err := io.ReadAll(w.Body)
 		require.NoError(ts.T(), err)
 
-		require.Equal(ts.T(), example.StatusCode, w.Code, "Example %d failed with body %q", i, response)
+		require.Equal(
+			ts.T(),
+			example.StatusCode,
+			w.Code,
+			"Example %d failed with body %q",
+			i,
+			response,
+		)
 
 		if example.StatusCode != http.StatusCreated {
 			continue
@@ -354,7 +412,11 @@ func (ts *SSOTestSuite) TestAdminCreateSSOProvider() {
 
 		require.NoError(ts.T(), json.Unmarshal(response, &provider))
 
-		req = httptest.NewRequest(http.MethodGet, "http://localhost/admin/sso/providers/"+provider.ID, nil)
+		req = httptest.NewRequest(
+			http.MethodGet,
+			"http://localhost/admin/sso/providers/"+provider.ID,
+			nil,
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w = httptest.NewRecorder()
 
@@ -408,14 +470,18 @@ func (ts *SSOTestSuite) TestAdminUpdateSSOProvider() {
 	}{
 		{
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-A"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-A",
+				),
 			},
 		},
 		{
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-C"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-C",
+				),
 				"domains": []string{
 					"example.com",
 				},
@@ -427,7 +493,11 @@ func (ts *SSOTestSuite) TestAdminUpdateSSOProvider() {
 		body, err := json.Marshal(example.Request)
 		require.NoError(ts.T(), err)
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/admin/sso/providers", bytes.NewBuffer(body))
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/admin/sso/providers",
+			bytes.NewBuffer(body),
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -454,7 +524,9 @@ func (ts *SSOTestSuite) TestAdminUpdateSSOProvider() {
 			ID:     providers[0].ID,
 			Status: http.StatusBadRequest, // changing entity ID
 			Request: map[string]interface{}{
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B"),
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+				),
 			},
 		},
 		{
@@ -495,7 +567,11 @@ func (ts *SSOTestSuite) TestAdminUpdateSSOProvider() {
 		body, err := json.Marshal(example.Request)
 		require.NoError(ts.T(), err)
 
-		req := httptest.NewRequest(http.MethodPut, "http://localhost/admin/sso/providers/"+example.ID, bytes.NewBuffer(body))
+		req := httptest.NewRequest(
+			http.MethodPut,
+			"http://localhost/admin/sso/providers/"+example.ID,
+			bytes.NewBuffer(body),
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -512,8 +588,10 @@ func (ts *SSOTestSuite) TestAdminDeleteSSOProvider() {
 	}{
 		{
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-A"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-A",
+				),
 			},
 		},
 	}
@@ -522,7 +600,11 @@ func (ts *SSOTestSuite) TestAdminDeleteSSOProvider() {
 		body, err := json.Marshal(example.Request)
 		require.NoError(ts.T(), err)
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/admin/sso/providers", bytes.NewBuffer(body))
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/admin/sso/providers",
+			bytes.NewBuffer(body),
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -551,7 +633,11 @@ func (ts *SSOTestSuite) TestAdminDeleteSSOProvider() {
 	}
 
 	for _, example := range examples {
-		req := httptest.NewRequest(http.MethodDelete, "http://localhost/admin/sso/providers/"+example.ID, nil)
+		req := httptest.NewRequest(
+			http.MethodDelete,
+			"http://localhost/admin/sso/providers/"+example.ID,
+			nil,
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -569,7 +655,11 @@ func (ts *SSOTestSuite) TestAdminDeleteSSOProvider() {
 	}
 
 	for _, example := range check {
-		req := httptest.NewRequest(http.MethodGet, "http://localhost/admin/sso/providers/"+example.ID, nil)
+		req := httptest.NewRequest(
+			http.MethodGet,
+			"http://localhost/admin/sso/providers/"+example.ID,
+			nil,
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 
@@ -588,8 +678,10 @@ func (ts *SSOTestSuite) TestSingleSignOn() {
 			// creates a SAML provider (EXAMPLE-A)
 			// does not have a domain mapping
 			Request: map[string]interface{}{
-				"type":         "saml",
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-A"),
+				"type": "saml",
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-A",
+				),
 			},
 		},
 		{
@@ -600,7 +692,9 @@ func (ts *SSOTestSuite) TestSingleSignOn() {
 				"domains": []string{
 					"example.com",
 				},
-				"metadata_xml": validSAMLIDPMetadata("https://accounts.google.com/o/saml2?idpid=EXAMPLE-B"),
+				"metadata_xml": validSAMLIDPMetadata(
+					"https://accounts.google.com/o/saml2?idpid=EXAMPLE-B",
+				),
 			},
 		},
 	}
@@ -609,7 +703,11 @@ func (ts *SSOTestSuite) TestSingleSignOn() {
 		body, err := json.Marshal(example.Request)
 		require.NoError(ts.T(), err)
 
-		req := httptest.NewRequest(http.MethodPost, "http://localhost/admin/sso/providers", bytes.NewBuffer(body))
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"http://localhost/admin/sso/providers",
+			bytes.NewBuffer(body),
+		)
 		req.Header.Set("Authorization", "Bearer "+ts.AdminJWT)
 		w := httptest.NewRecorder()
 

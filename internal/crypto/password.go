@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/supabase/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/observability"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
@@ -44,21 +44,38 @@ const (
 var PasswordHashCost = DefaultHashCost
 
 var (
-	generateFromPasswordSubmittedCounter = observability.ObtainMetricCounter("gotrue_generate_from_password_submitted", "Number of submitted GenerateFromPassword hashing attempts")
-	generateFromPasswordCompletedCounter = observability.ObtainMetricCounter("gotrue_generate_from_password_completed", "Number of completed GenerateFromPassword hashing attempts")
+	generateFromPasswordSubmittedCounter = observability.ObtainMetricCounter(
+		"gotrue_generate_from_password_submitted",
+		"Number of submitted GenerateFromPassword hashing attempts",
+	)
+	generateFromPasswordCompletedCounter = observability.ObtainMetricCounter(
+		"gotrue_generate_from_password_completed",
+		"Number of completed GenerateFromPassword hashing attempts",
+	)
 )
 
 var (
-	compareHashAndPasswordSubmittedCounter = observability.ObtainMetricCounter("gotrue_compare_hash_and_password_submitted", "Number of submitted CompareHashAndPassword hashing attempts")
-	compareHashAndPasswordCompletedCounter = observability.ObtainMetricCounter("gotrue_compare_hash_and_password_completed", "Number of completed CompareHashAndPassword hashing attempts")
+	compareHashAndPasswordSubmittedCounter = observability.ObtainMetricCounter(
+		"gotrue_compare_hash_and_password_submitted",
+		"Number of submitted CompareHashAndPassword hashing attempts",
+	)
+	compareHashAndPasswordCompletedCounter = observability.ObtainMetricCounter(
+		"gotrue_compare_hash_and_password_completed",
+		"Number of completed CompareHashAndPassword hashing attempts",
+	)
 )
 
 var ErrArgon2MismatchedHashAndPassword = errors.New("crypto: argon2 hash and password mismatch")
 var ErrScryptMismatchedHashAndPassword = errors.New("crypto: fbscrypt hash and password mismatch")
 
 // argon2HashRegexp https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md#argon2-encoding
-var argon2HashRegexp = regexp.MustCompile("^[$](?P<alg>argon2(d|i|id))[$]v=(?P<v>(16|19))[$]m=(?P<m>[0-9]+),t=(?P<t>[0-9]+),p=(?P<p>[0-9]+)(,keyid=(?P<keyid>[^,]+))?(,data=(?P<data>[^$]+))?[$](?P<salt>[^$]+)[$](?P<hash>.+)$")
-var scryptHashRegexp = regexp.MustCompile(`^\$(?P<alg>fbscrypt)\$v=(?P<v>[0-9]+),n=(?P<n>[0-9]+),r=(?P<r>[0-9]+),p=(?P<p>[0-9]+)(?:,ss=(?P<ss>[^,]+))?(?:,sk=(?P<sk>[^$]+))?\$(?P<salt>[^$]+)\$(?P<hash>.+)$`)
+var argon2HashRegexp = regexp.MustCompile(
+	"^[$](?P<alg>argon2(d|i|id))[$]v=(?P<v>(16|19))[$]m=(?P<m>[0-9]+),t=(?P<t>[0-9]+),p=(?P<p>[0-9]+)(,keyid=(?P<keyid>[^,]+))?(,data=(?P<data>[^$]+))?[$](?P<salt>[^$]+)[$](?P<hash>.+)$",
+)
+
+var scryptHashRegexp = regexp.MustCompile(
+	`^\$(?P<alg>fbscrypt)\$v=(?P<v>[0-9]+),n=(?P<n>[0-9]+),r=(?P<r>[0-9]+),p=(?P<p>[0-9]+)(?:,ss=(?P<ss>[^,]+))?(?:,sk=(?P<sk>[^$]+))?\$(?P<salt>[^$]+)\$(?P<hash>.+)$`,
+)
 
 type Argon2HashInput struct {
 	alg     string
@@ -102,23 +119,36 @@ func ParseFirebaseScryptHash(hash string) (*FirebaseScryptHashInput, error) {
 	hashB64 := string(scryptHashRegexp.ExpandString(nil, "$hash", hash, submatch))
 
 	if alg != "fbscrypt" {
-		return nil, fmt.Errorf("crypto: Firebase scrypt hash uses unsupported algorithm %q only fbscrypt supported", alg)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt hash uses unsupported algorithm %q only fbscrypt supported",
+			alg,
+		)
 	}
 	if v != "1" {
-		return nil, fmt.Errorf("crypto: Firebase scrypt hash uses unsupported version %q only version 1 is supported", v)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt hash uses unsupported version %q only version 1 is supported",
+			v,
+		)
 	}
 	memoryPower, err := strconv.ParseUint(n, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("crypto: Firebase scrypt hash has invalid n parameter %q %w", n, err)
 	}
 	if memoryPower == 0 {
-		return nil, fmt.Errorf("crypto: Firebase scrypt hash has invalid n parameter %q: must be greater than 0", n)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt hash has invalid n parameter %q: must be greater than 0",
+			n,
+		)
 	}
 	// Exponent is passed in
 	memory := uint64(1) << memoryPower
 	rounds, err := strconv.ParseUint(r, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("crypto: Firebase scrypt hash has invalid r parameter %q: %w", r, err)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt hash has invalid r parameter %q: %w",
+			r,
+			err,
+		)
 	}
 
 	threads, err := strconv.ParseUint(p, 10, 8)
@@ -128,12 +158,18 @@ func ParseFirebaseScryptHash(hash string) (*FirebaseScryptHashInput, error) {
 
 	rawHash, err := base64.StdEncoding.DecodeString(hashB64)
 	if err != nil {
-		return nil, fmt.Errorf("crypto: Firebase scrypt hash has invalid base64 in the hash section %w", err)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt hash has invalid base64 in the hash section %w",
+			err,
+		)
 	}
 
 	salt, err := base64.StdEncoding.DecodeString(saltB64)
 	if err != nil {
-		return nil, fmt.Errorf("crypto: Firebase scrypt salt has invalid base64 in the hash section %w", err)
+		return nil, fmt.Errorf(
+			"crypto: Firebase scrypt salt has invalid base64 in the hash section %w",
+			err,
+		)
 	}
 
 	var saltSeparator, signerKey []byte
@@ -176,11 +212,18 @@ func ParseArgon2Hash(hash string) (*Argon2HashInput, error) {
 	hashB64 := string(argon2HashRegexp.ExpandString(nil, "$hash", hash, submatch))
 
 	if alg != "argon2i" && alg != "argon2id" {
-		return nil, fmt.Errorf("crypto: argon2 hash uses unsupported algorithm %q only argon2i and argon2id supported", alg)
+		return nil, fmt.Errorf(
+			"crypto: argon2 hash uses unsupported algorithm %q only argon2i and argon2id supported",
+			alg,
+		)
 	}
 
 	if v != "19" {
-		return nil, fmt.Errorf("crypto: argon2 hash uses unsupported version %q only %d is supported", v, argon2.Version)
+		return nil, fmt.Errorf(
+			"crypto: argon2 hash uses unsupported version %q only %d is supported",
+			v,
+			argon2.Version,
+		)
 	}
 
 	if data != "" {
@@ -250,10 +293,24 @@ func compareHashAndPasswordArgon2(ctx context.Context, hash, password string) er
 
 	switch input.alg {
 	case "argon2i":
-		derivedKey = argon2.Key([]byte(password), input.salt, uint32(input.time), uint32(input.memory)*1024, uint8(input.threads), uint32(len(input.rawHash))) // #nosec G115
+		derivedKey = argon2.Key(
+			[]byte(password),
+			input.salt,
+			uint32(input.time),
+			uint32(input.memory)*1024,
+			uint8(input.threads),
+			uint32(len(input.rawHash)),
+		) // #nosec G115
 
 	case "argon2id":
-		derivedKey = argon2.IDKey([]byte(password), input.salt, uint32(input.time), uint32(input.memory)*1024, uint8(input.threads), uint32(len(input.rawHash))) // #nosec G115
+		derivedKey = argon2.IDKey(
+			[]byte(password),
+			input.salt,
+			uint32(input.time),
+			uint32(input.memory)*1024,
+			uint8(input.threads),
+			uint32(len(input.rawHash)),
+		) // #nosec G115
 	}
 
 	match = subtle.ConstantTimeCompare(derivedKey, input.rawHash) == 0
@@ -290,7 +347,16 @@ func compareHashAndPasswordFirebaseScrypt(ctx context.Context, hash, password st
 
 	switch input.alg {
 	case "fbscrypt":
-		derivedKey, err = firebaseScrypt([]byte(password), input.salt, input.signerKey, input.saltSeparator, input.memory, input.rounds, input.threads, FirebaseScryptKeyLen)
+		derivedKey, err = firebaseScrypt(
+			[]byte(password),
+			input.salt,
+			input.signerKey,
+			input.saltSeparator,
+			input.memory,
+			input.rounds,
+			input.threads,
+			FirebaseScryptKeyLen,
+		)
 		if err != nil {
 			return err
 		}
@@ -307,8 +373,18 @@ func compareHashAndPasswordFirebaseScrypt(ctx context.Context, hash, password st
 	return nil
 }
 
-func firebaseScrypt(password, salt, signerKey, saltSeparator []byte, memCost, rounds, p, keyLen uint64) ([]byte, error) {
-	ck, err := scrypt.Key(password, append(salt, saltSeparator...), int(memCost), int(rounds), int(p), int(keyLen)) // #nosec G115
+func firebaseScrypt(
+	password, salt, signerKey, saltSeparator []byte,
+	memCost, rounds, p, keyLen uint64,
+) ([]byte, error) {
+	ck, err := scrypt.Key(
+		password,
+		append(salt, saltSeparator...),
+		int(memCost),
+		int(rounds),
+		int(p),
+		int(keyLen),
+	) // #nosec G115
 	if err != nil {
 		return nil, err
 	}

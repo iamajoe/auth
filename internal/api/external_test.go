@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type ExternalTestSuite struct {
@@ -38,7 +38,13 @@ func (ts *ExternalTestSuite) SetupTest() {
 	models.TruncateAll(ts.API.db)
 }
 
-func (ts *ExternalTestSuite) createUser(providerId string, email string, name string, avatar string, confirmationToken string) (*models.User, error) {
+func (ts *ExternalTestSuite) createUser(
+	providerId string,
+	email string,
+	name string,
+	avatar string,
+	confirmationToken string,
+) (*models.User, error) {
 	// Cleanup existing user, if they already exist
 	if u, _ := models.FindUserByEmailAndAudience(ts.API.db, email, ts.Config.JWT.Aud); u != nil {
 		require.NoError(ts.T(), ts.API.db.Destroy(u), "Error deleting user")
@@ -57,7 +63,8 @@ func (ts *ExternalTestSuite) createUser(providerId string, email string, name st
 	ts.Require().NoError(ts.API.db.Create(u), "Error creating user")
 
 	if confirmationToken != "" {
-		ts.Require().NoError(models.CreateOneTimeToken(ts.API.db, u.ID, email, u.ConfirmationToken, models.ConfirmationToken), "Error creating one-time confirmation/invite token")
+		ts.Require().
+			NoError(models.CreateOneTimeToken(ts.API.db, u.ID, email, u.ConfirmationToken, models.ConfirmationToken), "Error creating one-time confirmation/invite token")
 	}
 
 	i, err := models.NewIdentity(u, "email", map[string]interface{}{
@@ -70,7 +77,11 @@ func (ts *ExternalTestSuite) createUser(providerId string, email string, name st
 	return u, err
 }
 
-func performAuthorizationRequest(ts *ExternalTestSuite, provider string, inviteToken string) *httptest.ResponseRecorder {
+func performAuthorizationRequest(
+	ts *ExternalTestSuite,
+	provider string,
+	inviteToken string,
+) *httptest.ResponseRecorder {
 	authorizeURL := "http://localhost/authorize?provider=" + provider
 	if inviteToken != "" {
 		authorizeURL = authorizeURL + "&invite_token=" + inviteToken
@@ -84,7 +95,10 @@ func performAuthorizationRequest(ts *ExternalTestSuite, provider string, inviteT
 	return w
 }
 
-func performPKCEAuthorizationRequest(ts *ExternalTestSuite, provider, codeChallenge, codeChallengeMethod string) *httptest.ResponseRecorder {
+func performPKCEAuthorizationRequest(
+	ts *ExternalTestSuite,
+	provider, codeChallenge, codeChallengeMethod string,
+) *httptest.ResponseRecorder {
 	authorizeURL := "http://localhost/authorize?provider=" + provider
 	if codeChallenge != "" {
 		authorizeURL = authorizeURL + "&code_challenge=" + codeChallenge + "&code_challenge_method=" + codeChallengeMethod
@@ -97,7 +111,10 @@ func performPKCEAuthorizationRequest(ts *ExternalTestSuite, provider, codeChalle
 	return w
 }
 
-func performPKCEAuthorization(ts *ExternalTestSuite, provider, code, codeChallenge, codeChallengeMethod string) *url.URL {
+func performPKCEAuthorization(
+	ts *ExternalTestSuite,
+	provider, code, codeChallenge, codeChallengeMethod string,
+) *url.URL {
 	w := performPKCEAuthorizationRequest(ts, provider, codeChallenge, codeChallengeMethod)
 	ts.Require().Equal(http.StatusFound, w.Code)
 	// Get code and state from the redirect
@@ -123,7 +140,12 @@ func performPKCEAuthorization(ts *ExternalTestSuite, provider, code, codeChallen
 
 }
 
-func performAuthorization(ts *ExternalTestSuite, provider string, code string, inviteToken string) *url.URL {
+func performAuthorization(
+	ts *ExternalTestSuite,
+	provider string,
+	code string,
+	inviteToken string,
+) *url.URL {
 	w := performAuthorizationRequest(ts, provider, inviteToken)
 	ts.Require().Equal(http.StatusFound, w.Code)
 	u, err := url.Parse(w.Header().Get("Location"))
@@ -149,7 +171,16 @@ func performAuthorization(ts *ExternalTestSuite, provider string, code string, i
 	return u
 }
 
-func assertAuthorizationSuccess(ts *ExternalTestSuite, u *url.URL, tokenCount int, userCount int, email string, name string, providerId string, avatar string) {
+func assertAuthorizationSuccess(
+	ts *ExternalTestSuite,
+	u *url.URL,
+	tokenCount int,
+	userCount int,
+	email string,
+	name string,
+	providerId string,
+	avatar string,
+) {
 	// ensure redirect has #access_token=...
 	v, err := url.ParseQuery(u.RawQuery)
 	ts.Require().NoError(err)
@@ -180,7 +211,13 @@ func assertAuthorizationSuccess(ts *ExternalTestSuite, u *url.URL, tokenCount in
 	}
 }
 
-func assertAuthorizationFailure(ts *ExternalTestSuite, u *url.URL, errorDescription string, errorType string, email string) {
+func assertAuthorizationFailure(
+	ts *ExternalTestSuite,
+	u *url.URL,
+	errorDescription string,
+	errorType string,
+	email string,
+) {
 	// ensure new sign ups error
 	v, err := url.ParseQuery(u.RawQuery)
 	ts.Require().NoError(err)

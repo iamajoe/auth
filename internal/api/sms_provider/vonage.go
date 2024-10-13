@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 	"golang.org/x/exp/utf8string"
 )
 
@@ -94,7 +94,12 @@ func (t *VonageProvider) SendSms(phone string, message string) (string, error) {
 
 	// A status of zero indicates success; a non-zero value means something went wrong.
 	if resp.Messages[0].Status != "0" {
-		return resp.Messages[0].MessageID, fmt.Errorf("vonage error: %v (status: %v) for message %s", resp.Messages[0].ErrorText, resp.Messages[0].Status, resp.Messages[0].MessageID)
+		return resp.Messages[0].MessageID, fmt.Errorf(
+			"vonage error: %v (status: %v) for message %s",
+			resp.Messages[0].ErrorText,
+			resp.Messages[0].Status,
+			resp.Messages[0].MessageID,
+		)
 	}
 
 	return resp.Messages[0].MessageID, nil

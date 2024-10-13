@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
 )
 
 type UserTestSuite struct {
@@ -48,7 +48,13 @@ func (ts *UserTestSuite) SetupTest() {
 
 func (ts *UserTestSuite) generateToken(user *models.User, sessionId *uuid.UUID) string {
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, user, sessionId, models.PasswordGrant)
+	token, _, err := ts.API.generateAccessToken(
+		req,
+		ts.API.db,
+		user,
+		sessionId,
+		models.PasswordGrant,
+	)
 	require.NoError(ts.T(), err, "Error generating access token")
 	return token
 }
@@ -59,7 +65,13 @@ func (ts *UserTestSuite) generateAccessTokenAndSession(user *models.User) string
 	require.NoError(ts.T(), ts.API.db.Create(session))
 
 	req := httptest.NewRequest(http.MethodPost, "/token?grant_type=password", nil)
-	token, _, err := ts.API.generateAccessToken(req, ts.API.db, user, &session.ID, models.PasswordGrant)
+	token, _, err := ts.API.generateAccessToken(
+		req,
+		ts.API.db,
+		user,
+		&session.ID,
+		models.PasswordGrant,
+	)
 	require.NoError(ts.T(), err, "Error generating access token")
 	return token
 }
@@ -154,8 +166,16 @@ func (ts *UserTestSuite) TestUserUpdateEmail() {
 		ts.Run(c.desc, func() {
 			u, err := models.NewUser("", "", "", ts.Config.JWT.Aud, nil)
 			require.NoError(ts.T(), err, "Error creating test user model")
-			require.NoError(ts.T(), u.SetEmail(ts.API.db, c.userData["email"].(string)), "Error setting user email")
-			require.NoError(ts.T(), u.SetPhone(ts.API.db, c.userData["phone"].(string)), "Error setting user phone")
+			require.NoError(
+				ts.T(),
+				u.SetEmail(ts.API.db, c.userData["email"].(string)),
+				"Error setting user email",
+			)
+			require.NoError(
+				ts.T(),
+				u.SetPhone(ts.API.db, c.userData["phone"].(string)),
+				"Error setting user phone",
+			)
 			if isAnonymous, ok := c.userData["is_anonymous"]; ok {
 				u.IsAnonymous = isAnonymous.(bool)
 			}
@@ -319,7 +339,10 @@ func (ts *UserTestSuite) TestUserUpdatePassword() {
 			nonce:                   "123456",
 			sessionId:               &notRecentlyLoggedIn.ID,
 			requireReauthentication: true,
-			expected:                expected{code: http.StatusUnprocessableEntity, isAuthenticated: false},
+			expected: expected{
+				code:            http.StatusUnprocessableEntity,
+				isAuthenticated: false,
+			},
 		},
 		{
 			desc:                    "No need reauthentication because recently logged in",
@@ -335,7 +358,11 @@ func (ts *UserTestSuite) TestUserUpdatePassword() {
 		ts.Run(c.desc, func() {
 			ts.Config.Security.UpdatePasswordRequireReauthentication = c.requireReauthentication
 			var buffer bytes.Buffer
-			require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]string{"password": c.newPassword, "nonce": c.nonce}))
+			require.NoError(
+				ts.T(),
+				json.NewEncoder(&buffer).
+					Encode(map[string]string{"password": c.newPassword, "nonce": c.nonce}),
+			)
 
 			req := httptest.NewRequest(http.MethodPut, "http://localhost/user", &buffer)
 			req.Header.Set("Content-Type", "application/json")
@@ -349,10 +376,21 @@ func (ts *UserTestSuite) TestUserUpdatePassword() {
 			require.Equal(ts.T(), c.expected.code, w.Code)
 
 			// Request body
-			u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+			u, err = models.FindUserByEmailAndAudience(
+				ts.API.db,
+				"test@example.com",
+				ts.Config.JWT.Aud,
+			)
 			require.NoError(ts.T(), err)
 
-			isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, c.newPassword, ts.API.config.Security.DBEncryption.DecryptionKeys, ts.API.config.Security.DBEncryption.Encrypt, ts.API.config.Security.DBEncryption.EncryptionKeyID)
+			isAuthenticated, _, err := u.Authenticate(
+				context.Background(),
+				ts.API.db,
+				c.newPassword,
+				ts.API.config.Security.DBEncryption.DecryptionKeys,
+				ts.API.config.Security.DBEncryption.Encrypt,
+				ts.API.config.Security.DBEncryption.EncryptionKeyID,
+			)
 			require.NoError(ts.T(), err)
 
 			require.Equal(ts.T(), c.expected.isAuthenticated, isAuthenticated)
@@ -381,7 +419,10 @@ func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
 			newPassword:             "",
 			nonce:                   "",
 			requireReauthentication: false,
-			expected:                expected{code: http.StatusUnprocessableEntity, isAuthenticated: false},
+			expected: expected{
+				code:            http.StatusUnprocessableEntity,
+				isAuthenticated: false,
+			},
 		},
 
 		{
@@ -397,7 +438,11 @@ func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
 		ts.Run(c.desc, func() {
 			ts.Config.Security.UpdatePasswordRequireReauthentication = c.requireReauthentication
 			var buffer bytes.Buffer
-			require.NoError(ts.T(), json.NewEncoder(&buffer).Encode(map[string]string{"password": c.newPassword, "nonce": c.nonce}))
+			require.NoError(
+				ts.T(),
+				json.NewEncoder(&buffer).
+					Encode(map[string]string{"password": c.newPassword, "nonce": c.nonce}),
+			)
 
 			req := httptest.NewRequest(http.MethodPut, "http://localhost/user", &buffer)
 			req.Header.Set("Content-Type", "application/json")
@@ -411,10 +456,21 @@ func (ts *UserTestSuite) TestUserUpdatePasswordNoReauthenticationRequired() {
 			require.Equal(ts.T(), c.expected.code, w.Code)
 
 			// Request body
-			u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
+			u, err = models.FindUserByEmailAndAudience(
+				ts.API.db,
+				"test@example.com",
+				ts.Config.JWT.Aud,
+			)
 			require.NoError(ts.T(), err)
 
-			isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, c.newPassword, ts.API.config.Security.DBEncryption.DecryptionKeys, ts.API.config.Security.DBEncryption.Encrypt, ts.API.config.Security.DBEncryption.EncryptionKeyID)
+			isAuthenticated, _, err := u.Authenticate(
+				context.Background(),
+				ts.API.db,
+				c.newPassword,
+				ts.API.config.Security.DBEncryption.DecryptionKeys,
+				ts.API.config.Security.DBEncryption.Encrypt,
+				ts.API.config.Security.DBEncryption.EncryptionKeyID,
+			)
 			require.NoError(ts.T(), err)
 
 			require.Equal(ts.T(), c.expected.isAuthenticated, isAuthenticated)
@@ -472,7 +528,14 @@ func (ts *UserTestSuite) TestUserUpdatePasswordReauthentication() {
 	u, err = models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
 	require.NoError(ts.T(), err)
 
-	isAuthenticated, _, err := u.Authenticate(context.Background(), ts.API.db, "newpass", ts.Config.Security.DBEncryption.DecryptionKeys, ts.Config.Security.DBEncryption.Encrypt, ts.Config.Security.DBEncryption.EncryptionKeyID)
+	isAuthenticated, _, err := u.Authenticate(
+		context.Background(),
+		ts.API.db,
+		"newpass",
+		ts.Config.Security.DBEncryption.DecryptionKeys,
+		ts.Config.Security.DBEncryption.Encrypt,
+		ts.Config.Security.DBEncryption.EncryptionKeyID,
+	)
 	require.NoError(ts.T(), err)
 
 	require.True(ts.T(), isAuthenticated)
@@ -496,7 +559,11 @@ func (ts *UserTestSuite) TestUserUpdatePasswordLogoutOtherSessions() {
 		"email":    u.GetEmail(),
 		"password": "password",
 	}))
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -511,7 +578,11 @@ func (ts *UserTestSuite) TestUserUpdatePasswordLogoutOtherSessions() {
 		"email":    u.GetEmail(),
 		"password": "password",
 	}))
-	req = httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=password", &buffer)
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=password",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 
 	ts.API.handler.ServeHTTP(w, req)
@@ -539,7 +610,11 @@ func (ts *UserTestSuite) TestUserUpdatePasswordLogoutOtherSessions() {
 		"refresh_token": session1.RefreshToken,
 	}))
 
-	req = httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)
@@ -550,7 +625,11 @@ func (ts *UserTestSuite) TestUserUpdatePasswordLogoutOtherSessions() {
 		"refresh_token": session2.RefreshToken,
 	}))
 
-	req = httptest.NewRequest(http.MethodPost, "http://localhost/token?grant_type=refresh_token", &buffer)
+	req = httptest.NewRequest(
+		http.MethodPost,
+		"http://localhost/token?grant_type=refresh_token",
+		&buffer,
+	)
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 	ts.API.handler.ServeHTTP(w, req)

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -37,7 +37,10 @@ func (p kakaoProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return p.Exchange(context.Background(), code)
 }
 
-func (p kakaoProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (p kakaoProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u kakaoUser
 
 	if err := makeRequest(ctx, tok, p.Config, p.APIHost+"/v2/user/me", &u); err != nil {

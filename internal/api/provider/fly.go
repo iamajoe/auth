@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -69,7 +69,10 @@ func (p flyProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return p.Exchange(context.Background(), code)
 }
 
-func (p flyProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (p flyProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u flyUser
 	if err := makeRequest(ctx, tok, p.Config, p.APIPath+"/oauth/token/info", &u); err != nil {
 		return nil, err

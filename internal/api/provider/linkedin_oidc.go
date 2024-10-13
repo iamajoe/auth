@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -21,7 +21,10 @@ type linkedinOIDCProvider struct {
 }
 
 // NewLinkedinOIDCProvider creates a Linkedin account provider via OIDC.
-func NewLinkedinOIDCProvider(ext conf.OAuthProviderConfiguration, scopes string) (OAuthProvider, error) {
+func NewLinkedinOIDCProvider(
+	ext conf.OAuthProviderConfiguration,
+	scopes string,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
@@ -63,7 +66,10 @@ func (g linkedinOIDCProvider) GetOAuthToken(code string) (*oauth2.Token, error) 
 	return g.Exchange(context.Background(), code)
 }
 
-func (g linkedinOIDCProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g linkedinOIDCProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	idToken := tok.Extra("id_token")
 	if tok.AccessToken == "" || idToken == nil {
 		return &UserProvidedData{}, nil

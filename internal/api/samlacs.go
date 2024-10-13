@@ -12,11 +12,11 @@ import (
 	"github.com/crewjam/saml"
 	"github.com/fatih/structs"
 	"github.com/gofrs/uuid"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 func (a *API) samlDestroyRelayState(ctx context.Context, relayState *models.SAMLRelayState) error {
@@ -31,14 +31,19 @@ func (a *API) samlDestroyRelayState(ctx context.Context, relayState *models.SAML
 	})
 }
 
-func IsSAMLMetadataStale(idpMetadata *saml.EntityDescriptor, samlProvider models.SAMLProvider) bool {
+func IsSAMLMetadataStale(
+	idpMetadata *saml.EntityDescriptor,
+	samlProvider models.SAMLProvider,
+) bool {
 	now := time.Now()
 
 	hasValidityExpired := !idpMetadata.ValidUntil.IsZero() && now.After(idpMetadata.ValidUntil)
-	hasCacheDurationExceeded := idpMetadata.CacheDuration != 0 && now.After(samlProvider.UpdatedAt.Add(idpMetadata.CacheDuration))
+	hasCacheDurationExceeded := idpMetadata.CacheDuration != 0 &&
+		now.After(samlProvider.UpdatedAt.Add(idpMetadata.CacheDuration))
 
 	// if metadata XML does not publish validity or caching information, update once in 24 hours
-	needsForceUpdate := idpMetadata.ValidUntil.IsZero() && idpMetadata.CacheDuration == 0 && now.After(samlProvider.UpdatedAt.Add(24*time.Hour))
+	needsForceUpdate := idpMetadata.ValidUntil.IsZero() && idpMetadata.CacheDuration == 0 &&
+		now.After(samlProvider.UpdatedAt.Add(24*time.Hour))
 
 	return hasValidityExpired || hasCacheDurationExceeded || needsForceUpdate
 }
@@ -50,7 +55,12 @@ func (a *API) SamlAcs(w http.ResponseWriter, r *http.Request) error {
 			return internalServerError("site url is improperly formattted").WithInternalError(err)
 		}
 
-		q := getErrorQueryString(err, utilities.GetRequestID(r.Context()), observability.GetLogEntry(r).Entry, u.Query())
+		q := getErrorQueryString(
+			err,
+			utilities.GetRequestID(r.Context()),
+			observability.GetLogEntry(r).Entry,
+			u.Query(),
+		)
 		u.RawQuery = q.Encode()
 		http.Redirect(w, r, u.String(), http.StatusSeeOther)
 	}
@@ -80,17 +90,25 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 
 		relayState, err := models.FindSAMLRelayStateByID(db, relayStateUUID)
 		if models.IsNotFoundError(err) {
-			return notFoundError(ErrorCodeSAMLRelayStateNotFound, "SAML RelayState does not exist, try logging in again?")
+			return notFoundError(
+				ErrorCodeSAMLRelayStateNotFound,
+				"SAML RelayState does not exist, try logging in again?",
+			)
 		} else if err != nil {
 			return err
 		}
 
 		if time.Since(relayState.CreatedAt) >= a.config.SAML.RelayStateValidityPeriod {
 			if err := a.samlDestroyRelayState(ctx, relayState); err != nil {
-				return internalServerError("SAML RelayState has expired and destroying it failed. Try logging in again?").WithInternalError(err)
+				return internalServerError(
+					"SAML RelayState has expired and destroying it failed. Try logging in again?",
+				).WithInternalError(err)
 			}
 
-			return unprocessableEntityError(ErrorCodeSAMLRelayStateExpired, "SAML RelayState has expired. Try logging in again?")
+			return unprocessableEntityError(
+				ErrorCodeSAMLRelayStateExpired,
+				"SAML RelayState has expired. Try logging in again?",
+			)
 		}
 
 		// TODO: add abuse detection to bind the RelayState UUID with a
@@ -149,7 +167,10 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 
 	ssoProvider, err := models.FindSAMLProviderByEntityID(db, entityId)
 	if models.IsNotFoundError(err) {
-		return notFoundError(ErrorCodeSAMLIdPNotFound, "A SAML connection has not been established with this Identity Provider")
+		return notFoundError(
+			ErrorCodeSAMLIdPNotFound,
+			"A SAML connection has not been established with this Identity Provider",
+		)
 	} else if err != nil {
 		return err
 	}
@@ -162,13 +183,16 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 	samlMetadataModified := false
 
 	if ssoProvider.SAMLProvider.MetadataURL == nil {
-		if !idpMetadata.ValidUntil.IsZero() && time.Until(idpMetadata.ValidUntil) <= (30*24*60)*time.Second {
+		if !idpMetadata.ValidUntil.IsZero() &&
+			time.Until(idpMetadata.ValidUntil) <= (30*24*60)*time.Second {
 			logentry := log.WithField("sso_provider_id", ssoProvider.ID.String())
 			logentry = logentry.WithField("expires_in", time.Until(idpMetadata.ValidUntil).String())
 			logentry = logentry.WithField("valid_until", idpMetadata.ValidUntil)
 			logentry = logentry.WithField("saml_entity_id", ssoProvider.SAMLProvider.EntityID)
 
-			logentry.Warn("SAML Metadata for identity provider will expire soon! Update its metadata_xml!")
+			logentry.Warn(
+				"SAML Metadata for identity provider will expire soon! Update its metadata_xml!",
+			)
 		}
 	} else if *ssoProvider.SAMLProvider.MetadataURL != "" && IsSAMLMetadataStale(idpMetadata, ssoProvider.SAMLProvider) {
 		rawMetadata, err := fetchSAMLMetadata(ctx, *ssoProvider.SAMLProvider.MetadataURL)
@@ -189,10 +213,16 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 	spAssertion, err := serviceProvider.ParseResponse(r, requestIds)
 	if err != nil {
 		if ire, ok := err.(*saml.InvalidResponseError); ok {
-			return badRequestError(ErrorCodeValidationFailed, "SAML Assertion is not valid").WithInternalError(ire.PrivateErr)
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				"SAML Assertion is not valid",
+			).WithInternalError(ire.PrivateErr)
 		}
 
-		return badRequestError(ErrorCodeValidationFailed, "SAML Assertion is not valid").WithInternalError(err)
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"SAML Assertion is not valid",
+		).WithInternalError(err)
 	}
 
 	assertion := SAMLAssertion{
@@ -201,7 +231,10 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 
 	userID := assertion.UserID()
 	if userID == "" {
-		return badRequestError(ErrorCodeSAMLAssertionNoUserID, "SAML Assertion did not contain a persistent Subject Identifier attribute or Subject NameID uniquely identifying this user")
+		return badRequestError(
+			ErrorCodeSAMLAssertionNoUserID,
+			"SAML Assertion did not contain a persistent Subject Identifier attribute or Subject NameID uniquely identifying this user",
+		)
 	}
 
 	claims := assertion.Process(ssoProvider.SAMLProvider.AttributeMapping)
@@ -213,19 +246,26 @@ func (a *API) handleSamlAcs(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if email == "" {
-		return badRequestError(ErrorCodeSAMLAssertionNoEmail, "SAML Assertion does not contain an email address")
+		return badRequestError(
+			ErrorCodeSAMLAssertionNoEmail,
+			"SAML Assertion does not contain an email address",
+		)
 	} else {
 		claims["email"] = email
 	}
 
 	jsonClaims, err := json.Marshal(claims)
 	if err != nil {
-		return internalServerError("Mapped claims from provider could not be serialized into JSON").WithInternalError(err)
+		return internalServerError(
+			"Mapped claims from provider could not be serialized into JSON",
+		).WithInternalError(err)
 	}
 
 	providerClaims := &provider.Claims{}
 	if err := json.Unmarshal(jsonClaims, providerClaims); err != nil {
-		return internalServerError("Mapped claims from provider could not be deserialized from JSON").WithInternalError(err)
+		return internalServerError(
+			"Mapped claims from provider could not be deserialized from JSON",
+		).WithInternalError(err)
 	}
 
 	providerClaims.Subject = userID

@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 const apiTestConfig = "../../hack/test.env"
@@ -29,9 +29,14 @@ func TestLogger(t *testing.T) {
 	config.API.RequestIDHeader = "X-Request-ID"
 	addRequestIdHandler := AddRequestID(config)
 
-	logHandler := NewStructuredLogger(logrus.StandardLogger(), config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
+	logHandler := NewStructuredLogger(
+		logrus.StandardLogger(),
+		config,
+	)(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodPost, "http://example.com/path", nil)
 	req.Header.Add("X-Request-ID", "test-request-id")
@@ -59,9 +64,14 @@ func TestExcludeHealthFromLogs(t *testing.T) {
 	// logrus should write to the buffer so we can check if the logs are output correctly
 	logrus.SetOutput(&logBuffer)
 
-	logHandler := NewStructuredLogger(logrus.StandardLogger(), config)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	}))
+	logHandler := NewStructuredLogger(
+		logrus.StandardLogger(),
+		config,
+	)(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("ok"))
+		}),
+	)
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodGet, "http://example.com/health", nil)
 	require.NoError(t, err)

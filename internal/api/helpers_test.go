@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/stretchr/testify/require"
-	"github.com/supabase/auth/internal/conf"
 )
 
 func TestIsValidCodeChallenge(t *testing.T) {
@@ -19,14 +19,22 @@ func TestIsValidCodeChallenge(t *testing.T) {
 		expectedError error
 	}{
 		{
-			challenge:     "invalid",
-			isValid:       false,
-			expectedError: badRequestError(ErrorCodeValidationFailed, "code challenge has to be between %v and %v characters", MinCodeChallengeLength, MaxCodeChallengeLength),
+			challenge: "invalid",
+			isValid:   false,
+			expectedError: badRequestError(
+				ErrorCodeValidationFailed,
+				"code challenge has to be between %v and %v characters",
+				MinCodeChallengeLength,
+				MaxCodeChallengeLength,
+			),
 		},
 		{
-			challenge:     "codechallengecontainsinvalidcharacterslike@$^&*",
-			isValid:       false,
-			expectedError: badRequestError(ErrorCodeValidationFailed, "code challenge can only contain alphanumeric characters, hyphens, periods, underscores and tildes"),
+			challenge: "codechallengecontainsinvalidcharacterslike@$^&*",
+			isValid:   false,
+			expectedError: badRequestError(
+				ErrorCodeValidationFailed,
+				"code challenge can only contain alphanumeric characters, hyphens, periods, underscores and tildes",
+			),
 		},
 		{
 			challenge:     "validchallengevalidchallengevalidchallengevalidchallenge",
@@ -61,12 +69,18 @@ func TestIsValidPKCEParams(t *testing.T) {
 		{
 			challengeMethod: "test",
 			challenge:       "",
-			expected:        badRequestError(ErrorCodeValidationFailed, InvalidPKCEParamsErrorMessage),
+			expected: badRequestError(
+				ErrorCodeValidationFailed,
+				InvalidPKCEParamsErrorMessage,
+			),
 		},
 		{
 			challengeMethod: "",
 			challenge:       "test",
-			expected:        badRequestError(ErrorCodeValidationFailed, InvalidPKCEParamsErrorMessage),
+			expected: badRequestError(
+				ErrorCodeValidationFailed,
+				InvalidPKCEParamsErrorMessage,
+			),
 		},
 	}
 

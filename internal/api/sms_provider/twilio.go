@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 const (
@@ -131,7 +131,12 @@ func (t *TwilioProvider) SendSms(phone, message, channel, otp string) (string, e
 	}
 
 	if resp.Status == "failed" || resp.Status == "undelivered" {
-		return resp.MessageSID, fmt.Errorf("twilio error: %v %v for message %s", resp.ErrorMessage, resp.ErrorCode, resp.MessageSID)
+		return resp.MessageSID, fmt.Errorf(
+			"twilio error: %v %v for message %s",
+			resp.ErrorMessage,
+			resp.ErrorCode,
+			resp.MessageSID,
+		)
 	}
 
 	return resp.MessageSID, nil

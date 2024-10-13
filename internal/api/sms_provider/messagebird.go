@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 const (
@@ -87,7 +87,9 @@ func (t *MessagebirdProvider) SendSms(phone string, message string) (string, err
 		return "", err
 	}
 
-	if res.StatusCode == http.StatusBadRequest || res.StatusCode == http.StatusForbidden || res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusUnprocessableEntity {
+	if res.StatusCode == http.StatusBadRequest || res.StatusCode == http.StatusForbidden ||
+		res.StatusCode == http.StatusUnauthorized ||
+		res.StatusCode == http.StatusUnprocessableEntity {
 		resp := &MessagebirdErrResponse{}
 		if err := json.NewDecoder(res.Body).Decode(resp); err != nil {
 			return "", err

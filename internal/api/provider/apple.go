@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/iamajoe/auth/internal/conf"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -59,13 +59,18 @@ type appleUser struct {
 }
 
 // NewAppleProvider creates a Apple account provider.
-func NewAppleProvider(ctx context.Context, ext conf.OAuthProviderConfiguration) (OAuthProvider, error) {
+func NewAppleProvider(
+	ctx context.Context,
+	ext conf.OAuthProviderConfiguration,
+) (OAuthProvider, error) {
 	if err := ext.ValidateOAuth(); err != nil {
 		return nil, err
 	}
 
 	if ext.URL != "" {
-		logrus.Warn("Apple OAuth provider has URL config set which is ignored (check GOTRUE_EXTERNAL_APPLE_URL)")
+		logrus.Warn(
+			"Apple OAuth provider has URL config set which is ignored (check GOTRUE_EXTERNAL_APPLE_URL)",
+		)
 	}
 
 	oidcProvider, err := oidc.NewProvider(ctx, IssuerApple)
@@ -111,7 +116,10 @@ func (p AppleProvider) AuthCodeURL(state string, args ...oauth2.AuthCodeOption) 
 }
 
 // GetUserData returns the user data fetched from the apple provider
-func (p AppleProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (p AppleProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	idToken := tok.Extra("id_token")
 	if tok.AccessToken == "" || idToken == nil {
 		// Apple returns user data only the first time

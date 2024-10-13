@@ -5,11 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/storage"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -24,12 +24,14 @@ type OpenTelemetryTracerTestSuite struct {
 }
 
 func TestOpenTelemetryTracer(t *testing.T) {
-	api, config, err := setupAPIForTestWithCallback(func(config *conf.GlobalConfiguration, conn *storage.Connection) {
-		if config != nil {
-			config.Tracing.Enabled = true
-			config.Tracing.Exporter = conf.OpenTelemetryTracing
-		}
-	})
+	api, config, err := setupAPIForTestWithCallback(
+		func(config *conf.GlobalConfiguration, conn *storage.Connection) {
+			if config != nil {
+				config.Tracing.Enabled = true
+				config.Tracing.Exporter = conf.OpenTelemetryTracing
+			}
+		},
+	)
 
 	require.NoError(t, err)
 

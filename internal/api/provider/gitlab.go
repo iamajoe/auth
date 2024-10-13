@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -65,7 +65,10 @@ func (g gitlabProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return g.Exchange(context.Background(), code)
 }
 
-func (g gitlabProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g gitlabProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u gitlabUser
 
 	if err := makeRequest(ctx, tok, g.Config, g.Host+"/api/v4/user", &u); err != nil {
@@ -82,7 +85,10 @@ func (g gitlabProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*Us
 	for _, e := range emails {
 		// additional emails from GitLab don't return confirm status
 		if e.Email != "" {
-			data.Emails = append(data.Emails, Email{Email: e.Email, Verified: false, Primary: false})
+			data.Emails = append(
+				data.Emails,
+				Email{Email: e.Email, Verified: false, Primary: false},
+			)
 		}
 	}
 

@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type IdentityTestSuite struct {
@@ -101,16 +101,28 @@ func (ts *IdentityTestSuite) TestLinkIdentityToUser() {
 		},
 	}
 	u, err = ts.API.linkIdentityToUser(r, ctx, ts.API.db, testExistingUserData, "email")
-	require.ErrorIs(ts.T(), err, unprocessableEntityError(ErrorCodeIdentityAlreadyExists, "Identity is already linked"))
+	require.ErrorIs(
+		ts.T(),
+		err,
+		unprocessableEntityError(ErrorCodeIdentityAlreadyExists, "Identity is already linked"),
+	)
 	require.Nil(ts.T(), u)
 }
 
 func (ts *IdentityTestSuite) TestUnlinkIdentityError() {
 	ts.Config.Security.ManualLinkingEnabled = true
-	userWithOneIdentity, err := models.FindUserByEmailAndAudience(ts.API.db, "one@example.com", ts.Config.JWT.Aud)
+	userWithOneIdentity, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"one@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 
-	userWithTwoIdentities, err := models.FindUserByEmailAndAudience(ts.API.db, "two@example.com", ts.Config.JWT.Aud)
+	userWithTwoIdentities, err := models.FindUserByEmailAndAudience(
+		ts.API.db,
+		"two@example.com",
+		ts.Config.JWT.Aud,
+	)
 	require.NoError(ts.T(), err)
 	cases := []struct {
 		desc          string
@@ -119,23 +131,33 @@ func (ts *IdentityTestSuite) TestUnlinkIdentityError() {
 		expectedError *HTTPError
 	}{
 		{
-			desc:          "User must have at least 1 identity after unlinking",
-			user:          userWithOneIdentity,
-			identityId:    userWithOneIdentity.Identities[0].ID,
-			expectedError: unprocessableEntityError(ErrorCodeSingleIdentityNotDeletable, "User must have at least 1 identity after unlinking"),
+			desc:       "User must have at least 1 identity after unlinking",
+			user:       userWithOneIdentity,
+			identityId: userWithOneIdentity.Identities[0].ID,
+			expectedError: unprocessableEntityError(
+				ErrorCodeSingleIdentityNotDeletable,
+				"User must have at least 1 identity after unlinking",
+			),
 		},
 		{
-			desc:          "Identity doesn't exist",
-			user:          userWithTwoIdentities,
-			identityId:    uuid.Must(uuid.NewV4()),
-			expectedError: unprocessableEntityError(ErrorCodeIdentityNotFound, "Identity doesn't exist"),
+			desc:       "Identity doesn't exist",
+			user:       userWithTwoIdentities,
+			identityId: uuid.Must(uuid.NewV4()),
+			expectedError: unprocessableEntityError(
+				ErrorCodeIdentityNotFound,
+				"Identity doesn't exist",
+			),
 		},
 	}
 
 	for _, c := range cases {
 		ts.Run(c.desc, func() {
 			token := ts.generateAccessTokenAndSession(c.user)
-			req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/user/identities/%s", c.identityId), nil)
+			req, err := http.NewRequest(
+				http.MethodDelete,
+				fmt.Sprintf("/user/identities/%s", c.identityId),
+				nil,
+			)
 			require.NoError(ts.T(), err)
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 			w := httptest.NewRecorder()
@@ -177,14 +199,26 @@ func (ts *IdentityTestSuite) TestUnlinkIdentity() {
 		ts.Run(c.desc, func() {
 			// teardown and reset the state of the db to prevent running into errors
 			ts.SetupTest()
-			u, err := models.FindUserByEmailAndAudience(ts.API.db, "two@example.com", ts.Config.JWT.Aud)
+			u, err := models.FindUserByEmailAndAudience(
+				ts.API.db,
+				"two@example.com",
+				ts.Config.JWT.Aud,
+			)
 			require.NoError(ts.T(), err)
 
-			identity, err := models.FindIdentityByIdAndProvider(ts.API.db, u.ID.String(), c.provider)
+			identity, err := models.FindIdentityByIdAndProvider(
+				ts.API.db,
+				u.ID.String(),
+				c.provider,
+			)
 			require.NoError(ts.T(), err)
 
 			token := ts.generateAccessTokenAndSession(u)
-			req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/user/identities/%s", identity.ID), nil)
+			req, err := http.NewRequest(
+				http.MethodDelete,
+				fmt.Sprintf("/user/identities/%s", identity.ID),
+				nil,
+			)
 			require.NoError(ts.T(), err)
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 			w := httptest.NewRecorder()

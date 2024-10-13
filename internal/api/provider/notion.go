@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/utilities"
 	"golang.org/x/oauth2"
 )
 
@@ -63,7 +63,10 @@ func (g notionProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return g.Exchange(context.Background(), code)
 }
 
-func (g notionProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (g notionProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u notionUser
 
 	// Perform http request, because we need to set the Notion-Version header
@@ -85,7 +88,10 @@ func (g notionProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*Us
 	defer utilities.SafeClose(resp.Body)
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("a %v error occurred with retrieving user from notion", resp.StatusCode)
+		return nil, fmt.Errorf(
+			"a %v error occurred with retrieving user from notion",
+			resp.StatusCode,
+		)
 	}
 
 	body, err := io.ReadAll(resp.Body)

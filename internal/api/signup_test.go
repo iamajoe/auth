@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	mail "github.com/supabase/auth/internal/mailer"
+	mail "github.com/iamajoe/auth/internal/mailer"
 
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 )
 
 type SignupTestSuite struct {
@@ -128,14 +128,27 @@ func (ts *SignupTestSuite) TestVerifySignup() {
 	user.ConfirmationSentAt = &now
 	require.NoError(ts.T(), err)
 	require.NoError(ts.T(), ts.API.db.Create(user))
-	require.NoError(ts.T(), models.CreateOneTimeToken(ts.API.db, user.ID, user.GetEmail(), user.ConfirmationToken, models.ConfirmationToken))
+	require.NoError(
+		ts.T(),
+		models.CreateOneTimeToken(
+			ts.API.db,
+			user.ID,
+			user.GetEmail(),
+			user.ConfirmationToken,
+			models.ConfirmationToken,
+		),
+	)
 
 	// Find test user
 	u, err := models.FindUserByEmailAndAudience(ts.API.db, "test@example.com", ts.Config.JWT.Aud)
 	require.NoError(ts.T(), err)
 
 	// Setup request
-	reqUrl := fmt.Sprintf("http://localhost/verify?type=%s&token=%s", mail.SignupVerification, u.ConfirmationToken)
+	reqUrl := fmt.Sprintf(
+		"http://localhost/verify?type=%s&token=%s",
+		mail.SignupVerification,
+		u.ConfirmationToken,
+	)
 	req := httptest.NewRequest(http.MethodGet, reqUrl, nil)
 
 	// Setup response recorder

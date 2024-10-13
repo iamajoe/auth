@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
 )
 
 type AuditAction string
@@ -77,8 +77,8 @@ var ActionLogTypeMap = map[AuditAction]auditLogType{
 
 // AuditLogEntry is the database model for audit log entries.
 type AuditLogEntry struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	Payload   JSONMap   `json:"payload" db:"payload"`
+	ID        uuid.UUID `json:"id"         db:"id"`
+	Payload   JSONMap   `json:"payload"    db:"payload"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	IPAddress string    `json:"ip_address" db:"ip_address"`
 
@@ -90,7 +90,14 @@ func (AuditLogEntry) TableName() string {
 	return tableName
 }
 
-func NewAuditLogEntry(r *http.Request, tx *storage.Connection, actor *User, action AuditAction, ipAddress string, traits map[string]interface{}) error {
+func NewAuditLogEntry(
+	r *http.Request,
+	tx *storage.Connection,
+	actor *User,
+	action AuditAction,
+	ipAddress string,
+	traits map[string]interface{},
+) error {
 	id := uuid.Must(uuid.NewV4())
 
 	username := actor.GetEmail()
@@ -131,7 +138,12 @@ func NewAuditLogEntry(r *http.Request, tx *storage.Connection, actor *User, acti
 	return nil
 }
 
-func FindAuditLogEntries(tx *storage.Connection, filterColumns []string, filterValue string, pageParams *Pagination) ([]*AuditLogEntry, error) {
+func FindAuditLogEntries(
+	tx *storage.Connection,
+	filterColumns []string,
+	filterValue string,
+	pageParams *Pagination,
+) ([]*AuditLogEntry, error) {
 	q := tx.Q().Order("created_at desc").Where("instance_id = ?", uuid.Nil)
 
 	if len(filterColumns) > 0 && filterValue != "" {

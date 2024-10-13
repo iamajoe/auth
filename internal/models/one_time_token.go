@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
-	"github.com/supabase/auth/internal/storage"
 )
 
 type OneTimeTokenType int
@@ -102,7 +102,7 @@ func (e OneTimeTokenNotFoundError) Error() string {
 type OneTimeToken struct {
 	ID uuid.UUID `json:"id" db:"id"`
 
-	UserID    uuid.UUID        `json:"user_id" db:"user_id"`
+	UserID    uuid.UUID        `json:"user_id"    db:"user_id"`
 	TokenType OneTimeTokenType `json:"token_type" db:"token_type"`
 
 	TokenHash string `json:"token_hash" db:"token_hash"`
@@ -120,7 +120,11 @@ func ClearAllOneTimeTokensForUser(tx *storage.Connection, userID uuid.UUID) erro
 	return tx.Q().Where("user_id = ?", userID).Delete(OneTimeToken{})
 }
 
-func ClearOneTimeTokenForUser(tx *storage.Connection, userID uuid.UUID, tokenType OneTimeTokenType) error {
+func ClearOneTimeTokenForUser(
+	tx *storage.Connection,
+	userID uuid.UUID,
+	tokenType OneTimeTokenType,
+) error {
 	if err := tx.Q().Where("token_type = ? and user_id = ?", tokenType, userID).Delete(OneTimeToken{}); err != nil {
 		return err
 	}
@@ -128,7 +132,12 @@ func ClearOneTimeTokenForUser(tx *storage.Connection, userID uuid.UUID, tokenTyp
 	return nil
 }
 
-func CreateOneTimeToken(tx *storage.Connection, userID uuid.UUID, relatesTo, tokenHash string, tokenType OneTimeTokenType) error {
+func CreateOneTimeToken(
+	tx *storage.Connection,
+	userID uuid.UUID,
+	relatesTo, tokenHash string,
+	tokenType OneTimeTokenType,
+) error {
 	if err := ClearOneTimeTokenForUser(tx, userID, tokenType); err != nil {
 		return err
 	}
@@ -148,14 +157,23 @@ func CreateOneTimeToken(tx *storage.Connection, userID uuid.UUID, relatesTo, tok
 	return nil
 }
 
-func FindOneTimeToken(tx *storage.Connection, tokenHash string, tokenTypes ...OneTimeTokenType) (*OneTimeToken, error) {
+func FindOneTimeToken(
+	tx *storage.Connection,
+	tokenHash string,
+	tokenTypes ...OneTimeTokenType,
+) (*OneTimeToken, error) {
 	oneTimeToken := &OneTimeToken{}
 
 	query := tx.Eager().Q()
 
 	switch len(tokenTypes) {
 	case 2:
-		query = query.Where("(token_type = ? or token_type = ?) and token_hash = ?", tokenTypes[0], tokenTypes[1], tokenHash)
+		query = query.Where(
+			"(token_type = ? or token_type = ?) and token_hash = ?",
+			tokenTypes[0],
+			tokenTypes[1],
+			tokenHash,
+		)
 
 	case 1:
 		query = query.Where("token_type = ? and token_hash = ?", tokenTypes[0], tokenHash)
@@ -216,7 +234,10 @@ func FindUserByEmailChangeToken(tx *storage.Connection, token string) (*User, er
 }
 
 // FindUserByEmailChangeCurrentAndAudience finds a user with the matching email change and audience.
-func FindUserByEmailChangeCurrentAndAudience(tx *storage.Connection, email, token, aud string) (*User, error) {
+func FindUserByEmailChangeCurrentAndAudience(
+	tx *storage.Connection,
+	email, token, aud string,
+) (*User, error) {
 	ott, err := FindOneTimeToken(tx, token, EmailChangeTokenCurrent)
 	if err != nil {
 		return nil, err
@@ -245,7 +266,10 @@ func FindUserByEmailChangeCurrentAndAudience(tx *storage.Connection, email, toke
 }
 
 // FindUserByEmailChangeNewAndAudience finds a user with the matching email change and audience.
-func FindUserByEmailChangeNewAndAudience(tx *storage.Connection, email, token, aud string) (*User, error) {
+func FindUserByEmailChangeNewAndAudience(
+	tx *storage.Connection,
+	email, token, aud string,
+) (*User, error) {
 	ott, err := FindOneTimeToken(tx, token, EmailChangeTokenNew)
 	if err != nil && !IsNotFoundError(err) {
 		return nil, err
@@ -274,7 +298,11 @@ func FindUserByEmailChangeNewAndAudience(tx *storage.Connection, email, token, a
 }
 
 // FindUserForEmailChange finds a user requesting for an email change
-func FindUserForEmailChange(tx *storage.Connection, email, token, aud string, secureEmailChangeEnabled bool) (*User, error) {
+func FindUserForEmailChange(
+	tx *storage.Connection,
+	email, token, aud string,
+	secureEmailChangeEnabled bool,
+) (*User, error) {
 	if secureEmailChangeEnabled {
 		if user, err := FindUserByEmailChangeCurrentAndAudience(tx, email, token, aud); err == nil {
 			return user, err

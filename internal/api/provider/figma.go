@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/supabase/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/conf"
 	"golang.org/x/oauth2"
 )
 
@@ -65,7 +65,10 @@ func (p figmaProvider) GetOAuthToken(code string) (*oauth2.Token, error) {
 	return p.Exchange(context.Background(), code)
 }
 
-func (p figmaProvider) GetUserData(ctx context.Context, tok *oauth2.Token) (*UserProvidedData, error) {
+func (p figmaProvider) GetUserData(
+	ctx context.Context,
+	tok *oauth2.Token,
+) (*UserProvidedData, error) {
 	var u figmaUser
 	if err := makeRequest(ctx, tok, p.Config, p.APIHost+"/v1/me", &u); err != nil {
 		return nil, err

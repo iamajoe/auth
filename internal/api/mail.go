@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"github.com/didip/tollbooth/v5"
-	"github.com/supabase/auth/internal/hooks"
-	mail "github.com/supabase/auth/internal/mailer"
+	"github.com/iamajoe/auth/internal/hooks"
+	mail "github.com/iamajoe/auth/internal/mailer"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/badoux/checkmail"
 	"github.com/fatih/structs"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/crypto"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 	"github.com/pkg/errors"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/crypto"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
 )
 
 var (

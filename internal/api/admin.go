@@ -9,12 +9,12 @@ import (
 	"github.com/fatih/structs"
 	"github.com/go-chi/chi/v5"
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/api/provider"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/observability"
+	"github.com/iamajoe/auth/internal/storage"
 	"github.com/pkg/errors"
 	"github.com/sethvargo/go-password/password"
-	"github.com/supabase/auth/internal/api/provider"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/observability"
-	"github.com/supabase/auth/internal/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -108,10 +108,18 @@ func (a *API) adminUsers(w http.ResponseWriter, r *http.Request) error {
 
 	pageParams, err := paginate(r)
 	if err != nil {
-		return badRequestError(ErrorCodeValidationFailed, "Bad Pagination Parameters: %v", err).WithInternalError(err)
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Bad Pagination Parameters: %v",
+			err,
+		).WithInternalError(err)
 	}
 
-	sortParams, err := sort(r, map[string]bool{models.CreatedAt: true}, []models.SortField{{Name: models.CreatedAt, Dir: models.Descending}})
+	sortParams, err := sort(
+		r,
+		map[string]bool{models.CreatedAt: true},
+		[]models.SortField{{Name: models.CreatedAt, Dir: models.Descending}},
+	)
 	if err != nil {
 		return badRequestError(ErrorCodeValidationFailed, "Bad Sort Parameters: %v", err)
 	}
@@ -169,7 +177,11 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 		if params.BanDuration != "none" {
 			duration, err = time.ParseDuration(params.BanDuration)
 			if err != nil {
-				return badRequestError(ErrorCodeValidationFailed, "invalid format for ban duration: %v", err)
+				return badRequestError(
+					ErrorCodeValidationFailed,
+					"invalid format for ban duration: %v",
+					err,
+				)
 			}
 		}
 		banDuration = &duration
@@ -214,7 +226,8 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 
 		var identities []models.Identity
 		if params.Email != "" {
-			if identity, terr := models.FindIdentityByIdAndProvider(tx, user.ID.String(), "email"); terr != nil && !models.IsNotFoundError(terr) {
+			if identity, terr := models.FindIdentityByIdAndProvider(tx, user.ID.String(), "email"); terr != nil &&
+				!models.IsNotFoundError(terr) {
 				return terr
 			} else if identity == nil {
 				// if the user doesn't have an existing email
@@ -250,7 +263,8 @@ func (a *API) adminUserUpdate(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if params.Phone != "" {
-			if identity, terr := models.FindIdentityByIdAndProvider(tx, user.ID.String(), "phone"); terr != nil && !models.IsNotFoundError(terr) {
+			if identity, terr := models.FindIdentityByIdAndProvider(tx, user.ID.String(), "phone"); terr != nil &&
+				!models.IsNotFoundError(terr) {
 				return terr
 			} else if identity == nil {
 				// if the user doesn't have an existing phone
@@ -338,7 +352,10 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if params.Email == "" && params.Phone == "" {
-		return badRequestError(ErrorCodeValidationFailed, "Cannot create a user without either an email or phone")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Cannot create a user without either an email or phone",
+		)
 	}
 
 	var providers []string
@@ -369,7 +386,10 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if params.Password != nil && params.PasswordHash != "" {
-		return badRequestError(ErrorCodeValidationFailed, "Only a password or a password hash should be provided")
+		return badRequestError(
+			ErrorCodeValidationFailed,
+			"Only a password or a password hash should be provided",
+		)
 	}
 
 	if (params.Password == nil || *params.Password == "") && params.PasswordHash == "" {
@@ -382,7 +402,13 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 
 	var user *models.User
 	if params.PasswordHash != "" {
-		user, err = models.NewUserWithPasswordHash(params.Phone, params.Email, params.PasswordHash, aud, params.UserMetaData)
+		user, err = models.NewUserWithPasswordHash(
+			params.Phone,
+			params.Email,
+			params.PasswordHash,
+			aud,
+			params.UserMetaData,
+		)
 	} else {
 		user, err = models.NewUser(params.Phone, params.Email, *params.Password, aud, params.UserMetaData)
 	}
@@ -397,7 +423,10 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 	if params.Id != "" {
 		customId, err := uuid.FromString(params.Id)
 		if err != nil {
-			return badRequestError(ErrorCodeValidationFailed, "ID must conform to the uuid v4 format")
+			return badRequestError(
+				ErrorCodeValidationFailed,
+				"ID must conform to the uuid v4 format",
+			)
 		}
 		if customId == uuid.Nil {
 			return badRequestError(ErrorCodeValidationFailed, "ID cannot be a nil uuid")
@@ -418,7 +447,11 @@ func (a *API) adminUserCreate(w http.ResponseWriter, r *http.Request) error {
 		if params.BanDuration != "none" {
 			duration, err = time.ParseDuration(params.BanDuration)
 			if err != nil {
-				return badRequestError(ErrorCodeValidationFailed, "invalid format for ban duration: %v", err)
+				return badRequestError(
+					ErrorCodeValidationFailed,
+					"invalid format for ban duration: %v",
+					err,
+				)
 			}
 		}
 		banDuration = &duration
@@ -545,7 +578,9 @@ func (a *API) adminUserDelete(w http.ResponseWriter, r *http.Request) error {
 			}
 
 			if terr := user.SoftDeleteUserIdentities(tx); terr != nil {
-				return internalServerError("Error soft deleting user identities").WithInternalError(terr)
+				return internalServerError(
+					"Error soft deleting user identities",
+				).WithInternalError(terr)
 			}
 
 			// hard delete all associated factors
@@ -622,7 +657,10 @@ func (a *API) adminUserUpdateFactor(w http.ResponseWriter, r *http.Request) erro
 		if params.Phone != "" && factor.IsPhoneFactor() {
 			phone, err := validatePhone(params.Phone)
 			if err != nil {
-				return badRequestError(ErrorCodeValidationFailed, "Invalid phone number format (E.164 required)")
+				return badRequestError(
+					ErrorCodeValidationFailed,
+					"Invalid phone number format (E.164 required)",
+				)
 			}
 			if terr := factor.UpdatePhone(tx, phone); terr != nil {
 				return terr

@@ -6,23 +6,52 @@ import (
 	"net/url"
 
 	"github.com/gofrs/uuid"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/iamajoe/auth/internal/models"
 	"github.com/sirupsen/logrus"
-	"github.com/supabase/auth/internal/conf"
-	"github.com/supabase/auth/internal/models"
 	"github.com/supabase/mailme"
 	"gopkg.in/gomail.v2"
 )
 
 // Mailer defines the interface a mailer must implement.
 type Mailer interface {
-	InviteMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error
-	ConfirmationMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error
-	RecoveryMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error
-	MagicLinkMail(r *http.Request, user *models.User, otp, referrerURL string, externalURL *url.URL) error
-	EmailChangeMail(r *http.Request, user *models.User, otpNew, otpCurrent, referrerURL string, externalURL *url.URL) error
+	InviteMail(
+		r *http.Request,
+		user *models.User,
+		otp, referrerURL string,
+		externalURL *url.URL,
+	) error
+	ConfirmationMail(
+		r *http.Request,
+		user *models.User,
+		otp, referrerURL string,
+		externalURL *url.URL,
+	) error
+	RecoveryMail(
+		r *http.Request,
+		user *models.User,
+		otp, referrerURL string,
+		externalURL *url.URL,
+	) error
+	MagicLinkMail(
+		r *http.Request,
+		user *models.User,
+		otp, referrerURL string,
+		externalURL *url.URL,
+	) error
+	EmailChangeMail(
+		r *http.Request,
+		user *models.User,
+		otpNew, otpCurrent, referrerURL string,
+		externalURL *url.URL,
+	) error
 	ReauthenticateMail(r *http.Request, user *models.User, otp string) error
 	ValidateEmail(email string) error
-	GetEmailActionLink(user *models.User, actionType, referrerURL string, externalURL *url.URL) (string, error)
+	GetEmailActionLink(
+		user *models.User,
+		actionType, referrerURL string,
+		externalURL *url.URL,
+	) (string, error)
 }
 
 type EmailParams struct {
@@ -96,7 +125,12 @@ func getPath(filepath string, params *EmailParams) (*url.URL, error) {
 		}
 	}
 	if params != nil {
-		path.RawQuery = fmt.Sprintf("token=%s&type=%s&redirect_to=%s", url.QueryEscape(params.Token), url.QueryEscape(params.Type), encodeRedirectURL(params.RedirectTo))
+		path.RawQuery = fmt.Sprintf(
+			"token=%s&type=%s&redirect_to=%s",
+			url.QueryEscape(params.Token),
+			url.QueryEscape(params.Type),
+			encodeRedirectURL(params.RedirectTo),
+		)
 	}
 	return path, nil
 }

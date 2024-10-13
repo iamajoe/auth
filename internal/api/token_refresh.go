@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/supabase/auth/internal/metering"
-	"github.com/supabase/auth/internal/models"
-	"github.com/supabase/auth/internal/storage"
-	"github.com/supabase/auth/internal/utilities"
+	"github.com/iamajoe/auth/internal/metering"
+	"github.com/iamajoe/auth/internal/models"
+	"github.com/iamajoe/auth/internal/storage"
+	"github.com/iamajoe/auth/internal/utilities"
 )
 
 const retryLoopDuration = 5.0
@@ -57,14 +57,22 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 		}
 
 		if session != nil {
-			result := session.CheckValidity(retryStart, &token.UpdatedAt, config.Sessions.Timebox, config.Sessions.InactivityTimeout)
+			result := session.CheckValidity(
+				retryStart,
+				&token.UpdatedAt,
+				config.Sessions.Timebox,
+				config.Sessions.InactivityTimeout,
+			)
 
 			switch result {
 			case models.SessionValid:
 				// do nothing
 
 			case models.SessionTimedOut:
-				return oauthError("invalid_grant", "Invalid Refresh Token: Session Expired (Inactivity)")
+				return oauthError(
+					"invalid_grant",
+					"Invalid Refresh Token: Session Expired (Inactivity)",
+				)
 
 			default:
 				return oauthError("invalid_grant", "Invalid Refresh Token: Session Expired")
@@ -83,7 +91,11 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 		var newTokenResponse *AccessTokenResponse
 
 		err = db.Transaction(func(tx *storage.Connection) error {
-			user, token, session, terr := models.FindUserWithRefreshToken(tx, params.RefreshToken, true /* forUpdate */)
+			user, token, session, terr := models.FindUserWithRefreshToken(
+				tx,
+				params.RefreshToken,
+				true, /* forUpdate */
+			)
 			if terr != nil {
 				if models.IsNotFoundError(terr) {
 					// because forUpdate was set, and the
@@ -127,7 +139,12 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 						continue
 					}
 
-					if s.CheckValidity(retryStart, nil, config.Sessions.Timebox, config.Sessions.InactivityTimeout) != models.SessionValid {
+					if s.CheckValidity(
+						retryStart,
+						nil,
+						config.Sessions.Timebox,
+						config.Sessions.InactivityTimeout,
+					) != models.SessionValid {
 						// session is not valid so it
 						// can't be regarded as active
 						// on the user
@@ -147,7 +164,10 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 					if s.LastRefreshedAt(nil).After(session.LastRefreshedAt(&token.UpdatedAt)) {
 						// session is not the most
 						// recently active one
-						return oauthError("invalid_grant", "Invalid Refresh Token: Session Expired (Revoked by Newer Login)")
+						return oauthError(
+							"invalid_grant",
+							"Invalid Refresh Token: Session Expired (Revoked by Newer Login)",
+						)
 					}
 				}
 
@@ -208,7 +228,13 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 				issuedToken = newToken
 			}
 
-			tokenString, expiresAt, terr = a.generateAccessToken(r, tx, user, issuedToken.SessionId, models.TokenRefresh)
+			tokenString, expiresAt, terr = a.generateAccessToken(
+				r,
+				tx,
+				user,
+				issuedToken.SessionId,
+				models.TokenRefresh,
+			)
 			if terr != nil {
 				httpErr, ok := terr.(*HTTPError)
 				if ok {
@@ -235,7 +261,9 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 			}
 
 			if terr := session.UpdateOnlyRefreshInfo(tx); terr != nil {
-				return internalServerError("failed to update session information").WithInternalError(terr)
+				return internalServerError(
+					"failed to update session information",
+				).WithInternalError(terr)
 			}
 
 			newTokenResponse = &AccessTokenResponse{
@@ -264,5 +292,7 @@ func (a *API) RefreshTokenGrant(ctx context.Context, w http.ResponseWriter, r *h
 		return sendJSON(w, http.StatusOK, newTokenResponse)
 	}
 
-	return conflictError("Too many concurrent token refresh requests on the same session or refresh token")
+	return conflictError(
+		"Too many concurrent token refresh requests on the same session or refresh token",
+	)
 }
