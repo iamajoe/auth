@@ -1,6 +1,10 @@
 package pkg
 
-import "github.com/iamajoe/auth/internal/conf"
+import (
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/iamajoe/auth/internal/conf"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+)
 
 type GlobalConfiguration = conf.GlobalConfiguration
 type APIConfiguration = conf.APIConfiguration
@@ -21,3 +25,10 @@ type SessionsConfiguration = conf.SessionsConfiguration
 type MFAConfiguration = conf.MFAConfiguration
 type SAMLConfiguration = conf.SAMLConfiguration
 type CORSConfiguration = conf.CORSConfiguration
+
+type JwtKeysDecoder = conf.JwtKeysDecoder
+type JwkInfo = conf.JwkInfo
+
+func GetSigningAlg(k jwk.Key) jwt.SigningMethod {
+	return conf.GetSigningAlg(k)
+}
