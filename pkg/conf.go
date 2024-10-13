@@ -26,6 +26,11 @@ type MFAConfiguration = conf.MFAConfiguration
 type SAMLConfiguration = conf.SAMLConfiguration
 type CORSConfiguration = conf.CORSConfiguration
 
+type EmailContentConfiguration = conf.EmailContentConfiguration
+type OAuthProviderConfiguration = conf.OAuthProviderConfiguration
+type EmailProviderConfiguration = conf.EmailProviderConfiguration
+type PhoneFactorTypeConfiguration = conf.PhoneFactorTypeConfiguration
+
 type JwtKeysDecoder = conf.JwtKeysDecoder
 type JwkInfo = conf.JwkInfo
 
