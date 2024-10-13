@@ -8,6 +8,7 @@ import (
 
 type API = api.API
 type Option = api.Option
+type LimiterOptions = api.LimiterOptions
 
 func NewAPIWithVersionAndLogger(
 	globalConfig *GlobalConfiguration,
@@ -17,4 +18,8 @@ func NewAPIWithVersionAndLogger(
 	opt ...Option,
 ) (*API, http.Handler) {
 	return api.NewAPIWithVersionAndLogger(globalConfig, db, version, loggerFn, opt...)
+}
+
+func NewLimiterOptions(gc *GlobalConfiguration) *LimiterOptions {
+	return api.NewLimiterOptions(gc)
 }
