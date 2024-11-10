@@ -2,17 +2,11 @@ package client
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/iamajoe/auth/pkg"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )
-
-const defaultMinPasswordLength int = 6
-const defaultChallengeExpiryDuration float64 = 300
-const defaultFactorExpiryDuration time.Duration = 300 * time.Second
-const defaultFlowStateExpiryDuration time.Duration = 300 * time.Second
 
 func GenerateJWTKeys(secret string, keyID string) (pkg.JwtKeysDecoder, []string, error) {
 	if secret == "" {
