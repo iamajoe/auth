@@ -41,6 +41,7 @@ require (
 	github.com/go-webauthn/x v0.1.12 // indirect
 	github.com/gobuffalo/nulls v0.4.2 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/go-tpm v0.9.1 // indirect
 	github.com/jackc/pgx/v4 v4.18.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
